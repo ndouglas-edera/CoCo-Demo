@@ -763,7 +763,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "coco-install",
     title: "Install Confidential Containers",
     description:
-      'Install Confidential Containers with the <a href="https://github.com/confidential-containers/charts" target="_blank" rel="noopener noreferrer">official CoCo Helm chart</a>. This is the documented starting point for the getting-started flow.',
+      'Install Confidential Containers with the <a href="https://github.com/confidential-containers/charts" target="_blank" rel="noopener noreferrer">official CoCo Helm chart</a>. <br/>This is the documented starting point for the getting-started flow.',
     command: "helm install coco oci://ghcr.io/confidential-containers/charts/confidential-containers \\\n  --namespace coco-system \\\n  --create-namespace",
   },
   {
@@ -874,7 +874,7 @@ async function initTerminalDemo() {
 
       <header class="top-header">
         <a href="https://edera.dev" class="logo-link">EDERA</a>
-        <a href="https://docs.edera.dev/guides/security/confidential-computing/" target="_blank" rel="noopener noreferrer" class="edera-free-cta" style="justify-self:end;align-self:center;display:inline-flex;align-items:center;padding:12px 22px;border-radius:999px;background:var(--edera-lime);color:var(--edera-ink);font-weight:800;text-decoration:none;white-space:nowrap;">Check our docs →</a>
+        <a href="https://docs.edera.dev/guides/security/confidential-computing/" target="_blank" class="edera-free-cta" style="justify-self:end;align-self:center;display:inline-flex;align-items:center;padding:12px 22px;border-radius:999px;background:var(--edera-lime);color:var(--edera-ink);font-weight:800;text-decoration:none;white-space:nowrap;">Check our docs →</a>
       </header>
 
       <section class="brand-hero" aria-labelledby="hero-title">
@@ -1003,25 +1003,13 @@ async function initTerminalDemo() {
         </div>
       </div>
 
-      <div
-        class="edera-free-bottom"
-        style="display:flex;justify-content:center;margin:32px 0 8px;"
-      >
-        <a
-          href="https://ndouglas-edera.github.io/ctf-challenge-1/"
-          target="_blank"
-          rel="noopener noreferrer"
-          style="display:inline-block;padding:14px 30px;border-radius:999px;background:#b8ff3c;color:#081716;font-weight:800;font-size:16px;text-decoration:none;box-shadow:0 10px 30px rgba(184,255,60,.25);"
-        >Try our CTF challenge →</a>
+      <div class="edera-free-bottom" style="display:flex;justify-content:center;margin:32px 0 8px;" >
+        <a href="https://ndouglas-edera.github.io/ctf-challenge-1/" target="_blank" style="display:inline-block;padding:14px 30px;border-radius:999px;background:#b8ff3c;color:#081716;font-weight:800;font-size:16px;text-decoration:none;box-shadow:0 10px 30px rgba(184,255,60,.25);" >Try our CTF challenge →</a>
       </div>
 
       <div class="edera-footer">
-        <img
-          src="https://docs.edera.dev/Ivy%20Headphones.png"
-          alt="Ivy from Edera"
-          loading="lazy"
-        />
-        <span>Made with love by the team at <a href="https://edera.dev/love" target="_blank" rel="noopener noreferrer">Edera</a></span>
+        <img src="https://docs.edera.dev/Ivy%20Headphones.png" alt="Ivy from Edera" loading="lazy" />
+        <span>Made with love by the team at <a href="https://edera.dev/love" target="_blank">Edera</a></span>
       </div>
 
       <!-- Lab completion modal -->
@@ -1049,10 +1037,10 @@ async function initTerminalDemo() {
           <div style="width:64px;height:64px;margin:0 auto 20px;display:grid;place-items:center;border-radius:50%;background:#b8ff3c;color:#081716;font-size:32px;font-weight:800;">✓</div>
           <div style="margin-bottom:10px;color:#00e5d4;font-size:12px;font-weight:800;letter-spacing:.16em;">LAB COMPLETE</div>
           <h2 id="completion-title" style="margin:0 0 14px;color:#f8fffd;font-size:30px;">Thank you for completing the lab!</h2>
-          <p style="margin:0 0 28px;color:#a8cfca;line-height:1.6;">You've completed the Edera × Confidential Containers getting-started walkthrough. Ready to explore Edera for yourself?</p>
+          <p style="margin:0 0 28px;color:#a8cfca;line-height:1.6;">You've completed the Confidential Containers demo. Ready to explore our CTF challenge?</p>
           <div class="completion-actions">
             <button id="restart-demo-btn" type="button" class="completion-restart-btn">Start a new session</button>
-            <a href="https://on.edera.dev" target="_blank" rel="noopener noreferrer" class="completion-license-link">Sign up for a free Edera license →</a>
+            <a href="https://ndouglas-edera.github.io/ctf-challenge-1/" target="_blank" rel="noopener noreferrer" class="completion-license-link">Capture The Flag→</a>
           </div>
         </div>
       </div>

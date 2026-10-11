@@ -207,6 +207,26 @@ spec:
       image: nginx:1.29.4
       imagePullPolicy: IfNotPresent`;
 
+// The cc_init_data annotation is initdata.toml, gzipped then base64-encoded:
+//   cat initdata.toml | gzip | base64 -w0
+const COCO_INITDATA_B64 =
+  "H4sIAAAAAAACA4WRT2vDMAzF7/4UxpeclqZshxDoqS27juZYQlEdNTFxrMxWSvPt5xD2F7oedNDjpyf0dEUfDDm5kSpL12mmBNiGvOG2n7XQwnP+ooQ41sBQCTWQNXpKPTakIpAkiRhAd9CgjOX4tABCmH4gz3IG0+taiBovMFqWW4/AWIKrz3Q74PuIgWWxkexH/IJ2UfQ0PaBeZ3WHDMaGe0zJ4HlLLkIO/T8Uh4fU/ob6zZPG8HPdBWz4Zg4Idcnxxv4usiRwd9scqVAAKVNvPzM+MnXoTprcxTSh+tOn3Tlqo7fzy1rmoVitJhr9U9SLPMvjVxdXXbe/bbuzroSDHudJrU+xVw+NPgA40cePNAIAAA==";
+
+const COCO_NGINX_SECURE_YAML_CONTENT = `apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-secure
+  namespace: default
+  annotations:
+    io.containerd.cri.runtime-handler: kata-qemu-coco-dev
+    io.katacontainers.config.hypervisor.cc_init_data: ${COCO_INITDATA_B64}
+spec:
+  runtimeClassName: kata-qemu-coco-dev
+  containers:
+  - name: nginx
+    image: nginx:1.29.4
+    imagePullPolicy: IfNotPresent`;
+
 const COCO_AGENT_POLICY_REGO = `package agent_policy
 import rego.v1
 
@@ -219,6 +239,9 @@ default StatsContainerRequest := true
 
 # Block exec by default.
 default ExecProcessRequest := false
+
+# Block stdout/stderr streaming so container output can't leak to the host.
+default ReadStreamRequest := false
 
 # Allow container creation; pin production images to approved digests.
 default CreateContainerRequest := true`;
@@ -237,6 +260,7 @@ default GuestDetailsRequest := true
 default StartContainerRequest := true
 default StatsContainerRequest := true
 default ExecProcessRequest := false
+default ReadStreamRequest := false
 default CreateContainerRequest := true
 '''
 
@@ -812,20 +836,27 @@ description:
 `Confirm that the nginx Pod requests the Confidential Computing development (<b><a href="https://confidentialcontainers.org/tags/non-tee/" target="_blank" rel="noopener noreferrer">non-TEE</a></b>) RuntimeClass.`,
 command: "kubectl get pod nginx -o jsonpath='{.spec.runtimeClassName}'",
 },
+  {
+    id: "coco-runtimeclass-describe",
+    title: "Describe the development RuntimeClass",
+    description:
+      `A RuntimeClass is small but meaningful: the <code class="guide-code">Handler</code> selects the Kata shim in containerd, <code class="guide-code">Overhead</code> reserves CPU and memory for the pod's VM, and <code class="guide-code">Scheduling</code> limits pods to nodes where Kata is installed.`,
+    command: "kubectl describe runtimeclass kata-qemu-coco-dev",
+  },
 {
 id: "coco-tdx",
 title: "Select the Intel TDX production runtime",
 description:
-`For <a href="https://www.intel.com/content/www/us/en/products/details/processors/xeon/features/trust-domain-extensions.html" target="_blank" rel="noopener noreferrer"><b>Intel TDX</b></a> hardware, the documented production RuntimeClass is <code class="guide-code">kata-qemu-tdx</code>. <br/>As always, do not attempt to use this on hardware that does not support TDX.`,
-command: "kubectl get runtimeclass kata-qemu-tdx",
+`For <a href="https://www.intel.com/content/www/us/en/products/details/processors/xeon/features/trust-domain-extensions.html" target="_blank" rel="noopener noreferrer"><b>Intel TDX</b></a> hardware, the documented production RuntimeClass is <code class="guide-code">kata-qemu-tdx</code>. <br/>Compare the <code class="guide-code">Overhead</code> with the development runtime: every TEE pod is a confidential VM, and the scheduler reserves capacity for it. <br/>Do not attempt to use this on hardware that does not support TDX.`,
+command: "kubectl describe runtimeclass kata-qemu-tdx",
 },
 
 {
 id: "coco-snp",
 title: "Compare the AMD SEV-SNP runtime",
 description:
-`For <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/sev-snp.html" target="_blank" rel="noopener noreferrer"><b>AMD SEV-SNP</b></a> hardware, use <code class="guide-code">kata-qemu-snp</code>. <br/>RuntimeClass selection must match the underlying TEE platform.`,
-command: "kubectl get runtimeclass kata-qemu-snp",
+`For <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/sev-snp.html" target="_blank" rel="noopener noreferrer"><b>AMD SEV-SNP</b></a> hardware, use <code class="guide-code">kata-qemu-snp</code>. <br/>Note that the RuntimeClass itself does not check your hardware; selection must match the underlying TEE platform.`,
+command: "kubectl describe runtimeclass kata-qemu-snp",
 },
 {
 id: "coco-agent-policy",
@@ -841,6 +872,41 @@ description:
 `<a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> is a measured TOML configuration that can carry:     <ul>       <li><code class="guide-code">policy.rego</code></li>       <li>Attestation Agent configuration</li>       <li>Confidential Data Hub configuration.</li>     </ul>`,
 command: "cat initdata.toml",
 },
+  {
+    id: "coco-secure-inspect",
+    title: "Attach Init-Data to a workload",
+    description:
+      `Init-Data travels with the Pod as the <code class="guide-code">io.katacontainers.config.hypervisor.cc_init_data</code> annotation: <code class="guide-code">initdata.toml</code>, gzipped and base64-encoded. <br/>Its hash is bound into the TEE measurement, so the host cannot swap the policy without attestation failing.`,
+    command: "cat nginx-secure.yaml",
+  },
+  {
+    id: "coco-secure-apply",
+    title: "Deploy the policy-protected workload",
+    description:
+      "Create a second nginx Pod, identical to the first except that it carries the restrictive Agent Policy.",
+    command: "kubectl apply -f nginx-secure.yaml",
+  },
+  {
+    id: "coco-exec-baseline",
+    title: "Exec into the unprotected Pod",
+    description:
+      "The original <code class='guide-code'>nginx</code> Pod has no Init-Data, so the guest falls back to its default, permissive policy and <code class='guide-code'>kubectl exec</code> works. <br/>Anyone with exec rights in the cluster could do the same.",
+    command: "kubectl exec nginx -- cat /etc/hostname",
+  },
+  {
+    id: "coco-exec-blocked",
+    title: "Attempt to exec into the protected Pod",
+    description:
+      "Now try the same command against <code class='guide-code'>nginx-secure</code>. The request still reaches the Kata agent, but the agent evaluates it against the policy <b>inside the TEE</b> and refuses with <code class='guide-code'>PermissionDenied</code>. <br/>Not even a cluster-admin or the host can override this.",
+    command: "kubectl exec nginx-secure -- cat /etc/hostname",
+  },
+  {
+    id: "coco-logs-blocked",
+    title: "Attempt to read the protected Pod's logs",
+    description:
+      "Because the policy also sets <code class='guide-code'>ReadStreamRequest := false</code>, the agent won't stream the container's stdout/stderr out of the TEE, so the logs come back empty. <br/>Compare with <code class='guide-code'>kubectl logs nginx</code>.",
+    command: "kubectl logs nginx-secure",
+  },
 {
 id: "coco-kbs-resource-policy",
 title: "Configure the KBS Resource Policy",
@@ -1156,12 +1222,14 @@ async function initTerminalDemo() {
   // lets `ls`, `cd`, `cat`, and `kubectl -f` all share the same path resolution.
   const localFiles: Record<string, string> = {
     "/coco/nginx.yaml": COCO_NGINX_YAML_CONTENT,
+    "/coco/nginx-secure.yaml": COCO_NGINX_SECURE_YAML_CONTENT,
     "/coco/agent-policy.rego": COCO_AGENT_POLICY_REGO,
     "/coco/initdata.toml": COCO_INITDATA_TOML,
     "/coco/resource-policy.rego": COCO_KBS_RESOURCE_POLICY_REGO,
     "/coco/attestation-policy.rego": COCO_ATTESTATION_POLICY_REGO,
 
     "/nginx.yaml": COCO_NGINX_YAML_CONTENT,
+    "/nginx-secure.yaml": COCO_NGINX_SECURE_YAML_CONTENT,
     "/agent-policy.rego": COCO_AGENT_POLICY_REGO,
     "/initdata.toml": COCO_INITDATA_TOML,
     "/resource-policy.rego": COCO_KBS_RESOURCE_POLICY_REGO,
@@ -1256,11 +1324,13 @@ vfio_pci`;
     { size: number; modified: string }
   > = {
     "/coco/nginx.yaml": { size: COCO_NGINX_YAML_CONTENT.length, modified: "Oct 11 11:00" },
+    "/coco/nginx-secure.yaml": { size: COCO_NGINX_SECURE_YAML_CONTENT.length, modified: "Oct 11 11:00" },
     "/coco/agent-policy.rego": { size: COCO_AGENT_POLICY_REGO.length, modified: "Oct 11 11:00" },
     "/coco/initdata.toml": { size: COCO_INITDATA_TOML.length, modified: "Oct 11 11:00" },
     "/coco/resource-policy.rego": { size: COCO_KBS_RESOURCE_POLICY_REGO.length, modified: "Oct 11 11:00" },
     "/coco/attestation-policy.rego": { size: COCO_ATTESTATION_POLICY_REGO.length, modified: "Oct 11 11:00" },
     "/nginx.yaml": { size: COCO_NGINX_YAML_CONTENT.length, modified: "Oct 11 11:00" },
+    "/nginx-secure.yaml": { size: COCO_NGINX_SECURE_YAML_CONTENT.length, modified: "Oct 11 11:00" },
     "/agent-policy.rego": { size: COCO_AGENT_POLICY_REGO.length, modified: "Oct 11 11:00" },
     "/initdata.toml": { size: COCO_INITDATA_TOML.length, modified: "Oct 11 11:00" },
     "/resource-policy.rego": { size: COCO_KBS_RESOURCE_POLICY_REGO.length, modified: "Oct 11 11:00" },
@@ -1525,6 +1595,36 @@ vfio_pci`;
   let cocoSystemPodsReady = false;
   let cocoWorkloadApplied = false;
   let cocoProductionRuntimeSelected = false;
+  // Pods ("namespace/name") whose Init-Data carries the restrictive Agent Policy.
+  const cocoPolicyProtectedPods = new Set<string>();
+
+  // Simulated RuntimeClass specs, mirroring what the CoCo chart (kata-deploy)
+  // installs: handler == name, a fixed pod overhead for the guest VM, and a
+  // node selector restricting pods to nodes where Kata is installed.
+  const getRuntimeClassSpec = (name: string) => {
+    if (name === "edera") {
+      return {
+        handler: "edera",
+        overhead: undefined as { cpu: string; memory: string } | undefined,
+        nodeSelector: { runtime: "edera" } as Record<string, string>,
+        helmManaged: false,
+        age: "1d",
+      };
+    }
+    const devRuntime = name.startsWith("kata-qemu-coco-dev");
+    const remoteRuntime = name === "kata-remote";
+    return {
+      handler: name,
+      overhead: devRuntime
+        ? { cpu: "250m", memory: "160Mi" }
+        : remoteRuntime
+          ? { cpu: "250m", memory: "120Mi" }
+          : { cpu: "1", memory: "2048Mi" },
+      nodeSelector: { "katacontainers.io/kata-runtime": "true" } as Record<string, string>,
+      helmManaged: true,
+      age: "2m",
+    };
+  };
 
   // A pod's runtimeClassName is only "effective" once that RuntimeClass
   // actually exists in the cluster. Until it's created the pod can't be
@@ -3260,6 +3360,21 @@ const renderNodes = () => {
           </div>
 
           <div class="cli-help-command">
+            <code>kubectl describe runtimeclass &lt;name&gt;</code>
+            <span>Show a RuntimeClass's handler, pod overhead and scheduling.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl apply -f nginx-secure.yaml</code>
+            <span>Deploy nginx with Init-Data carrying a restrictive Agent Policy.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl exec &lt;pod&gt; -- cat /etc/hostname</code>
+            <span>Exec into a CoCo pod (blocked when the Agent Policy denies it).</span>
+          </div>
+
+          <div class="cli-help-command">
             <code>kbs-client ... set-resource-policy --policy-file &lt;path&gt;</code>
             <span>Provision a KBS Resource Policy.</span>
           </div>
@@ -4355,6 +4470,14 @@ Kernel isolation: enabled</span>`);
       activeRuntimeClasses.add(runtimeClass),
     );
 
+    // kata-deploy labels every node it installs Kata on; the CoCo
+    // RuntimeClasses select on this label.
+    for (const node of nodes) {
+      if (!node.labels["node-role.kubernetes.io/control-plane"]) {
+        node.labels["katacontainers.io/kata-runtime"] = "true";
+      }
+    }
+
     const systemPods: LocalPod[] = [
       {
         name: "coco-controller-7d7f",
@@ -4428,13 +4551,10 @@ Kernel isolation: enabled</span>`);
         return true;
       }
 
-      printPre(
-        `<span style="color:#dff7f0;">NAME                   READY   STATUS    RESTARTS   AGE
-coco-controller-7d7f   1/1     Running   0          1s
-coco-runtime-9k2m      1/1     Running   0          1s</span>`,
-      );
+      // Let the generic `kubectl get pods` renderer draw the table so the
+      // colour scheme matches `kubectl get pods -A`.
       markDemoStepComplete("coco-ready");
-      return true;
+      return false;
     }
 
     if (
@@ -4442,37 +4562,133 @@ coco-runtime-9k2m      1/1     Running   0          1s</span>`,
       tokens[1] === "get" &&
       (tokens[2] === "runtimeclass" || tokens[2] === "runtimeclasses")
     ) {
-      if (!cocoInstalled) {
-        printHtml(`<span style="color:#a8cfca;">No resources found.</span>`);
+      // Rendering is handled by the generic kubectl handler; only track
+      // guide progress here.
+      if (cocoInstalled) {
+        const requested = tokens.slice(3).filter((token) => !token.startsWith("-"));
+        if (requested.length === 0) {
+          markDemoStepComplete("coco-runtimeclasses");
+        }
+      }
+      return false;
+    }
+
+    if (
+      tokens[0] === "kubectl" &&
+      (tokens[1] === "exec" || tokens[1] === "logs")
+    ) {
+      let namespaceName = "default";
+      let podName: string | undefined;
+      let commandArgs: string[] = [];
+
+      for (let i = 2; i < tokens.length; i++) {
+        const token = tokens[i];
+        if (token === "--") {
+          commandArgs = tokens.slice(i + 1);
+          break;
+        }
+        if (token === "-n" || token === "--namespace") {
+          namespaceName = tokens[++i] || namespaceName;
+        } else if (token.startsWith("--namespace=")) {
+          namespaceName = token.split("=")[1] || namespaceName;
+        } else if (token === "-c" || token === "--container") {
+          i++;
+        } else if (token.startsWith("-")) {
+          continue;
+        } else if (podName === undefined) {
+          podName = token.replace(/^pods?\//, "");
+        }
+      }
+
+      const pod = podName
+        ? pods.find((item) => item.name === podName && item.namespace === namespaceName)
+        : undefined;
+
+      // Only CoCo pods are handled here; anything else falls through.
+      if (!pod || !pod.runtimeClassName || !cocoRuntimeClasses.includes(pod.runtimeClassName)) {
+        return false;
+      }
+
+      const protectedByPolicy = cocoPolicyProtectedPods.has(`${pod.namespace}/${pod.name}`);
+
+      if (pod.status !== "Running") {
+        printHtml(
+          `<span style="color:#ff7373;">error: unable to upgrade connection: container not found ("nginx")</span>`,
+        );
         return true;
       }
 
-      const descriptions: Record<string, string> = {
-        "kata-qemu-coco-dev": "Development/testing runtime; no TEE security guarantees",
-        "kata-qemu-coco-dev-runtime-rs": "Development/testing runtime using the Rust-based runtime",
-        "kata-qemu-tdx": "Intel TDX",
-        "kata-qemu-snp": "AMD SEV-SNP",
-        "kata-qemu-sev": "AMD SEV",
-        "kata-qemu-nvidia-gpu-tdx": "Intel TDX with NVIDIA GPU support",
-        "kata-qemu-nvidia-gpu-snp": "AMD SNP with NVIDIA GPU support",
-        "kata-qemu-se": "Confidential SE",
-        "kata-remote": "Remote confidential computing runtime",
-      };
+      if (tokens[1] === "logs") {
+        if (protectedByPolicy) {
+          // ReadStreamRequest is denied inside the TEE, so nothing is streamed
+          // back to the host and kubectl prints no output at all.
+          addEvent(
+            "Warning",
+            "PolicyDenied",
+            `pod/${pod.name}`,
+            "Kata agent policy denied ReadStreamRequest; container output stays inside the TEE",
+          );
+          markDemoStepComplete("coco-logs-blocked");
+          return true;
+        }
 
-      let output =
-        `<span style="color:#00e5d4;font-weight:700;">NAME                                      HANDLER                   DESCRIPTION</span>\n`;
-      output += `<span style="color:#08736d;">${"─".repeat(96)}</span>\n`;
-      for (const runtimeClass of cocoRuntimeClasses) {
-        output += `${escapeHtml(runtimeClass.padEnd(43))}${escapeHtml(runtimeClass.padEnd(26))}${escapeHtml(descriptions[runtimeClass] || "")}\n`;
+        printPre(
+          `<span style="color:#dff7f0;">/docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+/docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+/docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+/docker-entrypoint.sh: Configuration complete; ready for start up</span>`,
+        );
+        return true;
       }
 
-      printPre(output.trimEnd());
-      markDemoStepComplete("coco-runtimeclasses");
-      if (tokens.includes("kata-qemu-tdx")) {
-        markDemoStepComplete("coco-tdx");
+      if (commandArgs.length === 0) {
+        printHtml(
+          `<span style="color:#ff7373;">error: you must specify at least one command for the container</span>`,
+        );
+        return true;
       }
-      if (tokens.includes("kata-qemu-snp")) {
-        markDemoStepComplete("coco-snp");
+
+      if (protectedByPolicy) {
+        const containerId = "3f9c1b7e5a2d4c8e9b0a6f1d2e3c4b5a6978e1f2d3c4b5a69788f1e2d3c4b5a6";
+        printHtml(
+          `<span style="color:#ff7373;">error: Internal error occurred: error executing command in container: failed to exec in container: failed to start exec "${containerId.slice(0, 12)}": cannot enter container ${containerId}, with err rpc error: code = PermissionDenied desc = "ExecProcessRequest is blocked by policy: ": unknown</span>`,
+        );
+        addEvent(
+          "Warning",
+          "PolicyDenied",
+          `pod/${pod.name}`,
+          "Kata agent policy inside the TEE denied ExecProcessRequest",
+        );
+        markDemoStepComplete("coco-exec-blocked");
+        return true;
+      }
+
+      const commandLine = commandArgs.join(" ");
+      let output: string | undefined;
+      if (commandLine === "cat /etc/hostname" || commandLine === "hostname") {
+        output = pod.name;
+      } else if (commandLine === "whoami") {
+        output = "root";
+      } else if (commandLine === "nginx -v") {
+        output = "nginx version: nginx/1.29.4";
+      }
+
+      if (output === undefined) {
+        printHtml(
+          `<span style="color:#a8cfca;">This demo simulates: cat /etc/hostname, hostname, whoami, nginx -v</span>`,
+        );
+        return true;
+      }
+
+      printPre(`<span style="color:#dff7f0;">${escapeHtml(output)}</span>`);
+      addEvent(
+        "Info",
+        "Exec",
+        `pod/${pod.name}`,
+        `Exec "${commandLine}" allowed by the default agent policy`,
+      );
+      if (pod.name === "nginx") {
+        markDemoStepComplete("coco-exec-baseline");
       }
       return true;
     }
@@ -4798,6 +5014,54 @@ coco-runtime-9k2m      1/1     Running   0          1s</span>`,
 
         printHtml(`<span style="color:#b8ff3c;">pod/nginx created</span>`);
         markDemoStepComplete("coco-apply-workload");
+        return true;
+      }
+
+      if (fileName === "nginx-secure.yaml") {
+        const podName = "nginx-secure";
+        const manifestNamespace = requireManifestNamespace(manifestPath);
+        if (!manifestNamespace) {
+          return true;
+        }
+
+        if (pods.some((pod) => pod.name === podName && pod.namespace === manifestNamespace)) {
+          printHtml(`<span style="color:#a8cfca;">pod/${podName} unchanged</span>`);
+          markDemoStepComplete("coco-secure-apply");
+          return true;
+        }
+
+        if (!cocoInstalled) {
+          printHtml(
+            `<span style="color:#ff7373;">Error: Confidential Containers is not installed. Run the Helm install step first.</span>`,
+          );
+          return true;
+        }
+
+        pods.push({
+          name: podName,
+          namespace: manifestNamespace,
+          status: "Pending",
+          age: "1s",
+          image: "nginx:1.29.4",
+          ip: "<none>",
+          node: "<none>",
+          labels: { app: "nginx-secure" },
+          runtimeClassName: "kata-qemu-coco-dev",
+        });
+        cocoPolicyProtectedPods.add(`${manifestNamespace}/${podName}`);
+
+        addEvent(
+          "Normal",
+          "Created",
+          `pod/${podName}`,
+          "pod/nginx-secure created with Init-Data (restrictive Agent Policy)",
+        );
+
+        checkPendingPods();
+        updateDashboard();
+
+        printHtml(`<span style="color:#b8ff3c;">pod/${podName} created</span>`);
+        markDemoStepComplete("coco-secure-apply");
         return true;
       }
 
@@ -5185,8 +5449,64 @@ coco-runtime-9k2m      1/1     Running   0          1s</span>`,
 
       if (!resource || !name) {
         printHtml(
-          `<span style="color:#ff7373;">Usage: kubectl describe pod|node &lt;name&gt; [-n &lt;namespace&gt;]</span>`,
+          `<span style="color:#ff7373;">Usage: kubectl describe pod|node|runtimeclass &lt;name&gt; [-n &lt;namespace&gt;]</span>`,
         );
+        return true;
+      }
+
+      if (resource === "runtimeclass" || resource === "runtimeclasses") {
+        if (!activeRuntimeClasses.has(name)) {
+          printHtml(
+            `<span style="color:#ff7373;">Error from server (NotFound): runtimeclasses.node.k8s.io "${escapeHtml(
+              name,
+            )}" not found</span>`,
+          );
+          return true;
+        }
+
+        const spec = getRuntimeClassSpec(name);
+        const lines = [
+          `Name:         ${name}`,
+          `Namespace:    `,
+          `Labels:       ${spec.helmManaged ? "app.kubernetes.io/managed-by=Helm" : "<none>"}`,
+          ...(spec.helmManaged
+            ? [
+                `Annotations:  meta.helm.sh/release-name: coco`,
+                `              meta.helm.sh/release-namespace: coco-system`,
+              ]
+            : [`Annotations:  <none>`]),
+          `API Version:  node.k8s.io/v1`,
+          `Handler:      ${spec.handler}`,
+          `Kind:         RuntimeClass`,
+          `Metadata:`,
+          `  Creation Timestamp:  2026-10-11T11:00:00Z`,
+          ...(spec.overhead
+            ? [
+                `Overhead:`,
+                `  Pod Fixed:`,
+                `    Cpu:     ${spec.overhead.cpu}`,
+                `    Memory:  ${spec.overhead.memory}`,
+              ]
+            : []),
+          `Scheduling:`,
+          `  Node Selector:`,
+          ...Object.entries(spec.nodeSelector).map(
+            ([key, value]) => `    ${key}:  ${value}`,
+          ),
+          `Events:       <none>`,
+        ];
+
+        printPre(`<span style="color:#dff7f0;">${escapeHtml(lines.join("\n"))}</span>`);
+
+        if (name === "kata-qemu-coco-dev") {
+          markDemoStepComplete("coco-runtimeclass-describe");
+        }
+        if (name === "kata-qemu-tdx") {
+          markDemoStepComplete("coco-tdx");
+        }
+        if (name === "kata-qemu-snp") {
+          markDemoStepComplete("coco-snp");
+        }
         return true;
       }
 
@@ -5884,34 +6204,56 @@ coco-runtime-9k2m      1/1     Running   0          1s</span>`,
 
       if (resource === "runtimeclass" ||
         resource === "runtimeclasses") {
-        const nameWidth = Math.max(
-          8,
-          ...Array.from(activeRuntimeClasses).map(
-            (runtimeClass) => runtimeClass.length + 2,
-          ),
+        const requestedNames = tokens
+          .slice(3)
+          .filter((token) => !token.startsWith("-"));
+
+        const missing = requestedNames.find(
+          (name) => !activeRuntimeClasses.has(name),
         );
-        const handlerWidth = 10;
-        const ageWidth = 7;
+        if (missing) {
+          printHtml(
+            `<span style="color:#ff7373;">Error from server (NotFound): runtimeclasses.node.k8s.io "${escapeHtml(
+              missing,
+            )}" not found</span>`,
+          );
+          return true;
+        }
+
+        const selected =
+          requestedNames.length > 0
+            ? requestedNames
+            : Array.from(activeRuntimeClasses);
+
+        if (selected.length === 0) {
+          printHtml(`<span style="color:#a8cfca;">No resources found</span>`);
+          return true;
+        }
+
+        // kubectl pads each column to its widest cell plus a 3-space gutter.
+        const nameWidth = Math.max(4, ...selected.map((name) => name.length)) + 3;
+        const handlerWidth =
+          Math.max(7, ...selected.map((name) => getRuntimeClassSpec(name).handler.length)) + 3;
 
         let output =
           `<span style="color:#00e5d4;font-weight:700;">` +
-          `${"NAME".padEnd(nameWidth)}${"HANDLER".padEnd(handlerWidth)}${"AGE".padEnd(ageWidth)}` +
+          `${"NAME".padEnd(nameWidth)}${"HANDLER".padEnd(handlerWidth)}AGE` +
           `</span>\n`;
-
         output += `<span style="color:#08736d;">${"─".repeat(
-          nameWidth + handlerWidth + ageWidth,
+          nameWidth + handlerWidth + 3,
         )}</span>\n`;
 
-        for (const runtimeClass of activeRuntimeClasses) {
+        for (const name of selected) {
+          const spec = getRuntimeClassSpec(name);
           output +=
-            `${escapeHtml(runtimeClass.padEnd(nameWidth))}` +
-            `${escapeHtml(runtimeClass.padEnd(handlerWidth))}` +
-            `${"1d".padEnd(ageWidth)}\n`;
+            `${escapeHtml(name.padEnd(nameWidth))}` +
+            `${escapeHtml(spec.handler.padEnd(handlerWidth))}` +
+            `${spec.age}\n`;
         }
 
         printPre(output.trimEnd());
 
-        if (activeRuntimeClasses.has("edera")) {
+        if (activeRuntimeClasses.has("edera") && requestedNames.length === 0) {
           markDemoStepComplete("edera-runtimeclass-list");
         }
 
@@ -7203,6 +7545,12 @@ coco-runtime-9k2m      1/1     Running   0          1s</span>`,
           if (fileName === "nginx.yaml" || fileName === "/coco/nginx.yaml") {
             printPre(`<span style="color:#dff7f0;">${escapeHtml(COCO_NGINX_YAML_CONTENT)}</span>`);
             markDemoStepComplete("coco-inspect-workload");
+            return;
+          }
+
+          if (fileName === "nginx-secure.yaml" || fileName === "/coco/nginx-secure.yaml") {
+            printPre(`<span style="color:#dff7f0;">${escapeHtml(COCO_NGINX_SECURE_YAML_CONTENT)}</span>`);
+            markDemoStepComplete("coco-secure-inspect");
             return;
           }
 

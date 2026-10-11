@@ -833,13 +833,13 @@ command: "kubectl get pod nginx -o jsonpath='{.spec.runtimeClassName}'",
       "Agent Policy runs inside the TEE and controls operations such as container creation and exec. <br/>In production, generate or review a policy appropriate to the workload.",
     command: "cat agent-policy.rego",
   },
-  {
-    id: "coco-initdata",
-    title: "Package policy in Init-Data",
-    description:
-      "Init-Data is a measured TOML configuration that can carry <code class='guide-code'>policy.rego</code>, Attestation Agent configuration, and Confidential Data Hub configuration.",
-    command: "cat initdata.toml",
-  },
+{
+id: "coco-initdata",
+title: "Package policy in Init-Data",
+description:
+`<a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> is a measured TOML configuration that can carry:     <ul>       <li><code class="guide-code">policy.rego</code></li>       <li>Attestation Agent configuration</li>       <li>Confidential Data Hub configuration.</li>     </ul>`,
+command: "cat initdata.toml",
+},
   {
     id: "coco-kbs-resource-policy",
     title: "Configure the KBS Resource Policy",

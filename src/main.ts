@@ -812,13 +812,14 @@ description:
 `Confirm that the nginx Pod requests the Confidential Computing development (<b><a href="https://confidentialcontainers.org/tags/non-tee/" target="_blank" rel="noopener noreferrer">non-TEE</a></b>) RuntimeClass.`,
 command: "kubectl get pod nginx -o jsonpath='{.spec.runtimeClassName}'",
 },
-  {
-    id: "coco-tdx",
-    title: "Select the Intel TDX production runtime",
-    description:
-      "For Intel TDX hardware, the documented production RuntimeClass is <code class='guide-code'>kata-qemu-tdx</code>. <br/>Do not use it on hardware that does not support TDX.",
-    command: "kubectl get runtimeclass kata-qemu-tdx",
-  },
+{
+id: "coco-tdx",
+title: "Select the Intel TDX production runtime",
+description:
+`For <a href="https://www.intel.com/content/www/us/en/products/details/processors/xeon/features/trust-domain-extensions.html" target="_blank" rel="noopener noreferrer"><b>Intel TDX</b></a> hardware, the documented production RuntimeClass is <code class="guide-code">kata-qemu-tdx</code>. <br/>As always, do not attempt to use this on hardware that does not support TDX.`,
+command: "kubectl get runtimeclass kata-qemu-tdx",
+},
+
 {
 id: "coco-snp",
 title: "Compare the AMD SEV-SNP runtime",
@@ -826,13 +827,13 @@ description:
 `For <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/sev-snp.html" target="_blank" rel="noopener noreferrer"><b>AMD SEV-SNP</b></a> hardware, use <code class="guide-code">kata-qemu-snp</code>. <br/>RuntimeClass selection must match the underlying TEE platform.`,
 command: "kubectl get runtimeclass kata-qemu-snp",
 },
-  {
-    id: "coco-agent-policy",
-    title: "Define a Kata Agent Policy",
-    description:
-      "Agent Policy runs inside the TEE and controls operations such as container creation and exec. <br/>In production, you will need to generate or at least review a policy appropriate to the workload.",
-    command: "cat agent-policy.rego",
-  },
+{
+id: "coco-agent-policy",
+title: "Define a Kata Agent Policy",
+description:
+`<a href="https://confidentialcontainers.org/docs/getting-started/securing-workloads/#1-kata-agent-policy-inside-the-tee" target="_blank" rel="noopener noreferrer"><b>Agent Policy</b></a> runs inside the TEE and controls operations such as container <b>creation</b> and <b>exec</b>. <br/>In production, you will need to generate or at least review a policy appropriate to the workload.`,
+command: "cat agent-policy.rego",
+},
 {
 id: "coco-initdata",
 title: "Package policy in Init-Data",

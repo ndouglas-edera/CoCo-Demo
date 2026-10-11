@@ -847,10 +847,9 @@ command: "kubectl get pod nginx -o jsonpath='{.spec.runtimeClassName}'",
 id: "coco-tdx",
 title: "Select the Intel TDX production runtime",
 description:
-`For <a href="https://www.intel.com/content/www/us/en/products/details/processors/xeon/features/trust-domain-extensions.html" target="_blank" rel="noopener noreferrer"><b>Intel TDX</b></a> hardware, the documented production RuntimeClass is <code class="guide-code">kata-qemu-tdx</code>. <br/>Compare the <code class="guide-code">Overhead</code> with the development runtime: every TEE pod is a confidential VM, and the scheduler reserves capacity for it. <br/>Do not attempt to use this on hardware that does not support TDX.`,
+`<p>For <a href="https://www.intel.com/content/www/us/en/products/details/processors/xeon/features/trust-domain-extensions.html" target="_blank" rel="noopener noreferrer"><b>Intel TDX</b></a> hardware, the documented production RuntimeClass is <code class="guide-code">kata-qemu-tdx</code>.</p>     <p>Compare the <code class="guide-code">Overhead</code> with the development runtime:</p>     <ul>       <li>Every TEE pod is a confidential VM.</li>       <li>The scheduler reserves capacity for it.</li>     </ul>     <p>Do not attempt to use this on hardware that does not support TDX.</p>`,
 command: "kubectl describe runtimeclass kata-qemu-tdx",
 },
-
 {
 id: "coco-snp",
 title: "Compare the AMD SEV-SNP runtime",
@@ -872,13 +871,13 @@ description:
 `<a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> is a measured TOML configuration that can carry:     <ul>       <li><code class="guide-code">policy.rego</code></li>       <li>Attestation Agent configuration</li>       <li>Confidential Data Hub configuration.</li>     </ul>`,
 command: "cat initdata.toml",
 },
-  {
-    id: "coco-secure-inspect",
-    title: "Attach Init-Data to a workload",
-    description:
-      `Init-Data travels with the Pod as the <code class="guide-code">io.katacontainers.config.hypervisor.cc_init_data</code> annotation: <code class="guide-code">initdata.toml</code>, gzipped and base64-encoded. <br/>Its hash is bound into the TEE measurement, so the host cannot swap the policy without attestation failing.`,
-    command: "cat nginx-secure.yaml",
-  },
+{
+id: "coco-secure-inspect",
+title: "Attach Init-Data to a workload",
+description:
+`<p><a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> travels with the Pod as the:</p>     <ul>       <li><code class="guide-code">io.katacontainers.config.hypervisor.cc_init_data</code> annotation</li>       <li><code class="guide-code">initdata.toml</code></li>       <li>gzipped</li>       <li>and base64-encoded.</li>     </ul>     <p>Its hash is bound into the TEE measurement, so the host cannot swap the policy without attestation failing.</p>`,
+command: "cat nginx-secure.yaml",
+},
   {
     id: "coco-secure-apply",
     title: "Deploy the policy-protected workload",
@@ -925,10 +924,10 @@ command:
 },
   {
     id: "coco-production-checklist",
-    title: "Review the production checklist",
+    title: "I am not sure I have anything left to show",
     description:
       "I actually have no idea what this command is supposed to be doing",
-    command: "coco production-checklist",
+    command: "coco this-brings-us-to-the-end-of-the-demo",
   },
 ];
 

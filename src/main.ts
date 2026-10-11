@@ -863,7 +863,7 @@ command: "kubectl describe runtimeclass kata-qemu-tdx",
 id: "coco-snp",
 title: "Compare the AMD SEV-SNP runtime",
 description:
-`For <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/sev-snp.html" target="_blank" rel="noopener noreferrer"><b>AMD SEV-SNP</b></a> hardware, use <code class="guide-code">kata-qemu-snp</code>. <br/>Note that the RuntimeClass itself does not check your hardware; selection must match the underlying TEE platform.`,
+`For <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/sev-snp.html" target="_blank" rel="noopener noreferrer"><b>AMD SEV-SNP</b></a> hardware, use <code class="guide-code">kata-qemu-snp</code>. <br/>Note that the RuntimeClass itself does not check your hardware; <br/>selection must match the underlying TEE platform.`,
 command: "kubectl describe runtimeclass kata-qemu-snp",
 },
 {
@@ -898,7 +898,12 @@ command: "cat nginx-secure.yaml",
     id: "coco-exec-baseline",
     title: "Exec into the unprotected Pod",
     description:
-      "The original <code class='guide-code'>nginx</code> Pod has no Init-Data, so the guest falls back to its default, permissive policy and <code class='guide-code'>kubectl exec</code> works. <br/>Anyone with <b>exec</b> rights in the cluster could do the same.",
+      "The original <code class='guide-code'>nginx</code> Pod has no Init-Data:" +
+      "<ul>" +
+      "<li>The guest falls back to its default, permissive policy.</li>" +
+      "<li><code class='guide-code'>kubectl exec</code> therefore simply works.</li>" +
+      "</ul>" +
+      "Anyone with exec rights in the cluster could do the same.",
     command: "kubectl exec nginx -- cat /etc/hostname",
   },
   {

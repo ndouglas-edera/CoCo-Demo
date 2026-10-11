@@ -952,7 +952,7 @@ command:
     title: "I am not sure I have anything left to show",
     description:
       "I actually have no idea what this command is supposed to be doing",
-    command: "coco this-brings-us-to-the-end-of-the-demo",
+    command: "./end-lab.sh",
   },
 ];
 

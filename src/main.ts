@@ -877,14 +877,14 @@ command: "cat agent-policy.rego",
 id: "coco-initdata",
 title: "Package policy in Init-Data",
 description:
-`<a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> is a measured TOML configuration that can carry:     <ul>       <li>A<code class="guide-code">policy.rego</code></li> configuration       <li>Attestation Agent configuration</li>       <li>Confidential Data Hub configuration</li>     </ul>`,
+`<a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> is a measured TOML configuration that can carry:     <ul>       <li>A <code class="guide-code">policy.rego</code> configuration</li>       <li>Attestation Agent configuration</li>       <li>Confidential Data Hub configuration</li>     </ul>`,
 command: "cat initdata.toml",
 },
 {
 id: "coco-secure-inspect",
 title: "Attach Init-Data to a workload",
 description:
-`<p><a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> travels with the Pod as:</p>     <ul>       <li>the <code class="guide-code">io.katacontainers.config.hypervisor.cc_init_data</code> annotation</li>       <li>inside the<code class="guide-code">initdata.toml</code></li>       <li>which is <b>gzipped</b></li>       <li>and also <b>base64</b>-encoded.</li>     </ul>     <p>Its hash is bound into the TEE measurement, so the host cannot swap the policy without attestation failing.</p>`,
+`<p><a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> travels with the Pod as:</p>     <ul>       <li>the <code class="guide-code">io.katacontainers.config.hypervisor.cc_init_data</code> annotation</li>       <li>with the<code class="guide-code">initdata.toml</code></li>       <li>which is <b>gzipped</b></li>       <li>and also <b>base64</b>-encoded.</li>     </ul>     <p>Its hash is bound into the TEE measurement, so the host cannot swap the policy without attestation failing.</p>`,
 command: "cat nginx-secure.yaml",
 },
   {
@@ -898,7 +898,7 @@ command: "cat nginx-secure.yaml",
     id: "coco-exec-baseline",
     title: "Exec into the unprotected Pod",
     description:
-      "The original <code class='guide-code'>nginx</code> Pod has no Init-Data, so the guest falls back to its default, permissive policy and <code class='guide-code'>kubectl exec</code> works. <br/>Anyone with exec rights in the cluster could do the same.",
+      "The original <code class='guide-code'>nginx</code> Pod has no Init-Data, so the guest falls back to its default, permissive policy and <code class='guide-code'>kubectl exec</code> works. <br/>Anyone with <b>exec</b> rights in the cluster could do the same.",
     command: "kubectl exec nginx -- cat /etc/hostname",
   },
   {
@@ -911,7 +911,7 @@ command: "cat nginx-secure.yaml",
       "<li>The agent evaluates it against the policy <b>inside the TEE</b>.</li>" +
       "<li>It refuses with <code class='guide-code'>PermissionDenied</code>.</li>" +
       "</ul>" +
-      "Not even a cluster-admin or the host can override this.",
+      "Not even a <b>cluster-admin</b> role or the literal <b>host</b> can override this.",
     command: "kubectl exec nginx-secure -- cat /etc/hostname",
   },
   {
@@ -920,7 +920,7 @@ command: "cat nginx-secure.yaml",
     description:
       "Because the policy also sets <code class='guide-code'>ReadStreamRequest := false</code>:" +
       "<ul>" +
-      "<li>The agent won't stream the container's stdout/stderr out of the TEE.</li>" +
+      "<li>The agent won't stream the container's <a href='https://en.wikipedia.org/wiki/Standard_streams' target='_blank' rel='noopener noreferrer'><b>stdout/stderr</b></a> out of the TEE.</li>" +
       "<li>The logs therefore come back empty.</li>" +
       "</ul>" +
       "Compare this with <code class='guide-code'>kubectl logs nginx</code>.",

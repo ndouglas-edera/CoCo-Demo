@@ -877,14 +877,14 @@ command: "cat agent-policy.rego",
 id: "coco-initdata",
 title: "Package policy in Init-Data",
 description:
-`<a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> is a measured TOML configuration that can carry:     <ul>       <li><code class="guide-code">policy.rego</code></li>       <li>Attestation Agent configuration</li>       <li>Confidential Data Hub configuration.</li>     </ul>`,
+`<a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> is a measured TOML configuration that can carry:     <ul>       <li>A<code class="guide-code">policy.rego</code></li> configuration       <li>Attestation Agent configuration</li>       <li>Confidential Data Hub configuration</li>     </ul>`,
 command: "cat initdata.toml",
 },
 {
 id: "coco-secure-inspect",
 title: "Attach Init-Data to a workload",
 description:
-`<p><a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> travels with the Pod as the:</p>     <ul>       <li><code class="guide-code">io.katacontainers.config.hypervisor.cc_init_data</code> annotation</li>       <li><code class="guide-code">initdata.toml</code></li>       <li>gzipped</li>       <li>and base64-encoded.</li>     </ul>     <p>Its hash is bound into the TEE measurement, so the host cannot swap the policy without attestation failing.</p>`,
+`<p><a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> travels with the Pod as:</p>     <ul>       <li>the <code class="guide-code">io.katacontainers.config.hypervisor.cc_init_data</code> annotation</li>       <li>inside the<code class="guide-code">initdata.toml</code></li>       <li>which is <b>gzipped</b></li>       <li>and also <b>base64</b>-encoded.</li>     </ul>     <p>Its hash is bound into the TEE measurement, so the host cannot swap the policy without attestation failing.</p>`,
 command: "cat nginx-secure.yaml",
 },
   {

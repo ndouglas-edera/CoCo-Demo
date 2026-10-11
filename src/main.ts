@@ -967,9 +967,9 @@ async function initTerminalDemo() {
         <div class="guide-header">
           <span class="drag-handle">⋮⋮</span>
           <div>
-            <div class="guide-title" id="guide-title">🧭 Edera × Confidential Containers Guide</div>
+            <div class="guide-title" id="guide-title">🧭 Confidential Containers Guide</div>
             <div class="guide-subtitle" id="guide-subtitle">
-              Run the official Confidential Containers getting-started flow below
+              Run the official Confidential Containers getting-started flow
             </div>
           </div>
 

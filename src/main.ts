@@ -848,14 +848,14 @@ command: "cat initdata.toml",
     command:
       "kbs-client --url <kbs-url> config --admin-token-file <admin-token-file> set-resource-policy --policy-file resource-policy.rego",
   },
-  {
-    id: "coco-attestation-policy",
-    title: "Configure the Attestation Service Policy",
-    description:
-      "Provision the Attestation Service Policy with the KBS Client. <br/>This policy defines how hardware evidence is evaluated against your trust requirements.",
-    command:
-      "kbs-client --url <kbs-url> config --admin-token-file <admin-token-file> set-attestation-policy --policy-file attestation-policy.rego",
-  },
+{
+id: "coco-attestation-policy",
+title: "Configure the Attestation Service Policy",
+description:
+`Before considering moving Confidential Containers to production:     <ol>       <li>Select the correct TEE <code class="guide-code">RuntimeClass</code> for your environment.</li>       <li>Review the Agent Policy to ensure it is neither too strict nor too broad in scope.</li>       <li>Configure the KBS Resource Policy to decide which CoCo resources are released to attested workloads.</li>       <li>Finally, provision the Attestation Service reference values that define how hardware evidence is evaluated against your trust requirements.</li>     </ol>`,
+command:
+"kbs-client --url <kbs-url> config --admin-token-file <admin-token-file> set-attestation-policy --policy-file attestation-policy.rego",
+},
   {
     id: "coco-production-checklist",
     title: "Review the production checklist",

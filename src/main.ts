@@ -763,7 +763,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "coco-install",
     title: "Install Confidential Containers",
     description:
-      'Install Confidential Containers with the <a href="https://github.com/confidential-containers/charts" target="_blank" rel="noopener noreferrer">official CoCo Helm chart</a>. <br/>This is the documented starting point for the getting-started flow.',
+      'Install Confidential Containers with the <b><a href="https://github.com/confidential-containers/charts" target="_blank" rel="noopener noreferrer">official CoCo Helm chart</a></b>. <br/>This is the documented starting point for the getting-started flow.',
     command: "helm install coco oci://ghcr.io/confidential-containers/charts/confidential-containers \\\n  --namespace coco-system \\\n  --create-namespace",
   },
   {
@@ -777,9 +777,9 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
 id: "coco-runtimeclasses",
 title: "Verify the RuntimeClasses",
 description:
-'List the <a href="https://kubernetes.io/docs/concepts/containers/runtime-class/" target="_blank" rel="noopener noreferrer">RuntimeClasses</a> installed by CoCo.' +
+'List the <b><a href="https://kubernetes.io/docs/concepts/containers/runtime-class/" target="_blank" rel="noopener noreferrer">RuntimeClasses</a></b> installed by Confidential Containers.' +
 '<ul>' +
-'<li>The <code class="guide-code">development</code> runtime is intended for testing without <a href="https://en.wikipedia.org/wiki/Trusted_execution_environment" target="_blank" rel="noopener noreferrer">TEE hardware</a>.</li>' +
+'<li>The <code class="guide-code">development</code> runtime is intended for testing without <b><a href="https://en.wikipedia.org/wiki/Trusted_execution_environment" target="_blank" rel="noopener noreferrer">TEE hardware</a></b>.</li>' +
 '<li>The <code class="guide-code">production</code> runtime must match the actual platform.</li>' +
 '</ul>',
 command: "kubectl get runtimeclass",

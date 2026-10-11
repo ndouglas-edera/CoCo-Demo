@@ -901,7 +901,13 @@ command: "cat nginx-secure.yaml",
     id: "coco-exec-blocked",
     title: "Attempt to exec into the protected Pod",
     description:
-      "Now try the same command against <code class='guide-code'>nginx-secure</code>. The request still reaches the Kata agent, but the agent evaluates it against the policy <b>inside the TEE</b> and refuses with <code class='guide-code'>PermissionDenied</code>. <br/>Not even a cluster-admin or the host can override this.",
+      "Now try the same command against <code class='guide-code'>nginx-secure</code>." +
+      "<ul>" +
+      "<li>The request still reaches the Kata agent.</li>" +
+      "<li>The agent evaluates it against the policy <b>inside the TEE</b>.</li>" +
+      "<li>It refuses with <code class='guide-code'>PermissionDenied</code>.</li>" +
+      "</ul>" +
+      "Not even a cluster-admin or the host can override this.",
     command: "kubectl exec nginx-secure -- cat /etc/hostname",
   },
   {

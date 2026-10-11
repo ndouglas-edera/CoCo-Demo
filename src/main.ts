@@ -788,16 +788,16 @@ command: "kubectl get runtimeclass",
 id: "coco-inspect-workload",
 title: "Inspect the sample workload",
 description:
-`Review the <b><a href="https://confidentialcontainers.org/docs/getting-started/workload/#creating-a-sample-confidential-containers-workload" target="_blank" rel="noopener noreferrer">official nginx example</a></b>.<br/>It uses <code class="guide-code">runtimeClassName: kata-qemu-coco-dev</code> and the containerd runtime-handler annotation.`,
+`Review the <b><a href="https://confidentialcontainers.org/docs/getting-started/workload/#creating-a-sample-confidential-containers-workload" target="_blank" rel="noopener noreferrer">official nginx example</a></b>.<br/>It uses <code class="guide-code">runtimeClassName: kata-qemu-coco-dev</code> and the <b><a href="https://kubernetes.io/docs/setup/production-environment/container-runtimes/#containerd" target="_blank" rel="noopener noreferrer">containerd</a></b> runtime-handler annotation.`,
 command: "cat nginx.yaml",
 },
-  {
-    id: "coco-apply-workload",
-    title: "Create a confidential workload",
-    description:
-      "Apply the sample Pod. The development runtime is useful for validating the CoCo integration, but it does not provide a hardware-backed security boundary.",
-    command: "kubectl apply -f nginx.yaml",
-  },
+{
+id: "coco-apply-workload",
+title: "Create a confidential workload",
+description:
+`Apply the sample Pod. The <b><a href="https://confidentialcontainers.org/docs/getting-started/prerequisites/hardware/nontee/" target="_blank" rel="noopener noreferrer">development</a></b> runtime is useful for validating the Confidential Computing integration, but it does not provide a hardware-backed security boundary.`,
+command: "kubectl apply -f nginx.yaml",
+},
   {
     id: "coco-get-pods",
     title: "Verify the workload",
@@ -805,32 +805,32 @@ command: "cat nginx.yaml",
       "List the Pods and confirm that the nginx workload reaches <code class='guide-code'>Running</code>.",
     command: "kubectl get pods",
   },
-  {
-    id: "coco-runtimeclass-inspect",
-    title: "Inspect the workload RuntimeClass",
-    description:
-      "Confirm that the nginx Pod requests the CoCo development RuntimeClass.",
-    command: "kubectl get pod nginx -o jsonpath='{.spec.runtimeClassName}'",
-  },
+{
+id: "coco-runtimeclass-inspect",
+title: "Inspect the workload RuntimeClass",
+description:
+`Confirm that the nginx Pod requests the Confidential Computing development (<b><a href="https://confidentialcontainers.org/tags/non-tee/" target="_blank" rel="noopener noreferrer">non-TEE</a></b>) RuntimeClass.`,
+command: "kubectl get pod nginx -o jsonpath='{.spec.runtimeClassName}'",
+},
   {
     id: "coco-tdx",
     title: "Select the Intel TDX production runtime",
     description:
-      "For Intel TDX hardware, the documented production RuntimeClass is <code class='guide-code'>kata-qemu-tdx</code>. Do not use it on hardware that does not support TDX.",
+      "For Intel TDX hardware, the documented production RuntimeClass is <code class='guide-code'>kata-qemu-tdx</code>. <br/>Do not use it on hardware that does not support TDX.",
     command: "kubectl get runtimeclass kata-qemu-tdx",
   },
   {
     id: "coco-snp",
     title: "Compare the AMD SEV-SNP runtime",
     description:
-      "For AMD SEV-SNP hardware, use <code class='guide-code'>kata-qemu-snp</code>. RuntimeClass selection must match the underlying TEE platform.",
+      "For AMD SEV-SNP hardware, use <code class='guide-code'>kata-qemu-snp</code>. <br/>RuntimeClass selection must match the underlying TEE platform.",
     command: "kubectl get runtimeclass kata-qemu-snp",
   },
   {
     id: "coco-agent-policy",
     title: "Define a Kata Agent Policy",
     description:
-      "Agent Policy runs inside the TEE and controls operations such as container creation and exec. In production, generate or review a policy appropriate to the workload.",
+      "Agent Policy runs inside the TEE and controls operations such as container creation and exec. <br/>In production, generate or review a policy appropriate to the workload.",
     command: "cat agent-policy.rego",
   },
   {
@@ -852,7 +852,7 @@ command: "cat nginx.yaml",
     id: "coco-attestation-policy",
     title: "Configure the Attestation Service Policy",
     description:
-      "Provision the Attestation Service Policy with the KBS Client. This policy defines how hardware evidence is evaluated against your trust requirements.",
+      "Provision the Attestation Service Policy with the KBS Client. <br/>This policy defines how hardware evidence is evaluated against your trust requirements.",
     command:
       "kbs-client --url <kbs-url> config --admin-token-file <admin-token-file> set-attestation-policy --policy-file attestation-policy.rego",
   },

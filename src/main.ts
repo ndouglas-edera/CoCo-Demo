@@ -819,18 +819,18 @@ command: "kubectl get pod nginx -o jsonpath='{.spec.runtimeClassName}'",
       "For Intel TDX hardware, the documented production RuntimeClass is <code class='guide-code'>kata-qemu-tdx</code>. <br/>Do not use it on hardware that does not support TDX.",
     command: "kubectl get runtimeclass kata-qemu-tdx",
   },
-  {
-    id: "coco-snp",
-    title: "Compare the AMD SEV-SNP runtime",
-    description:
-      "For AMD SEV-SNP hardware, use <code class='guide-code'>kata-qemu-snp</code>. <br/>RuntimeClass selection must match the underlying TEE platform.",
-    command: "kubectl get runtimeclass kata-qemu-snp",
-  },
+{
+id: "coco-snp",
+title: "Compare the AMD SEV-SNP runtime",
+description:
+`For <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/sev-snp.html" target="_blank" rel="noopener noreferrer"><b>AMD SEV-SNP</b></a> hardware, use <code class="guide-code">kata-qemu-snp</code>. <br/>RuntimeClass selection must match the underlying TEE platform.`,
+command: "kubectl get runtimeclass kata-qemu-snp",
+},
   {
     id: "coco-agent-policy",
     title: "Define a Kata Agent Policy",
     description:
-      "Agent Policy runs inside the TEE and controls operations such as container creation and exec. <br/>In production, generate or review a policy appropriate to the workload.",
+      "Agent Policy runs inside the TEE and controls operations such as container creation and exec. <br/>In production, you will need to generate or at least review a policy appropriate to the workload.",
     command: "cat agent-policy.rego",
   },
 {
@@ -840,19 +840,19 @@ description:
 `<a href="https://confidentialcontainers.org/docs/features/initdata/#example-restrictive-agent-policy" target="_blank" rel="noopener noreferrer"><b>Init-Data</b></a> is a measured TOML configuration that can carry:     <ul>       <li><code class="guide-code">policy.rego</code></li>       <li>Attestation Agent configuration</li>       <li>Confidential Data Hub configuration.</li>     </ul>`,
 command: "cat initdata.toml",
 },
-  {
-    id: "coco-kbs-resource-policy",
-    title: "Configure the KBS Resource Policy",
-    description:
-      "Use the KBS Client to provision a resource policy controlling which confidential resources are released to an attested workload.",
-    command:
-      "kbs-client --url <kbs-url> config --admin-token-file <admin-token-file> set-resource-policy --policy-file resource-policy.rego",
-  },
+{
+id: "coco-kbs-resource-policy",
+title: "Configure the KBS Resource Policy",
+description:
+`Use the Key Broker Service (<a href="https://confidentialcontainers.org/docs/attestation/client-tool/" target="_blank" rel="noopener noreferrer"><b>KBS</b></a>) Client to provision a resource policy controlling which confidential resources are released to an attested workload.`,
+command:
+"kbs-client --url <kbs-url> config --admin-token-file <admin-token-file> set-resource-policy --policy-file resource-policy.rego",
+},
 {
 id: "coco-attestation-policy",
 title: "Configure the Attestation Service Policy",
 description:
-`Before considering moving Confidential Containers to production:     <ol>       <li>Select the correct TEE <code class="guide-code">RuntimeClass</code> for your environment.</li>       <li>Review the Agent Policy to ensure it is neither too strict nor too broad in scope.</li>       <li>Configure the KBS Resource Policy to decide which CoCo resources are released to attested workloads.</li>       <li>Finally, provision the Attestation Service reference values that define how hardware evidence is evaluated against your trust requirements.</li>     </ol>`,
+`Before considering moving Confidential Containers to production:     <ol>       <li>Select the correct TEE <code class="guide-code">RuntimeClass</code> for your environment.</li>       <li>Review the Agent Policy to ensure it is neither too strict nor too broad in scope.</li>       <li>Configure the KBS Resource Policy to decide which CoCo resources are released to attested workloads.</li>       <li>Finally, provision the Attestation Service to define how hardware evidence is evaluated against your trust requirements.</li>     </ol>`,
 command:
 "kbs-client --url <kbs-url> config --admin-token-file <admin-token-file> set-attestation-policy --policy-file attestation-policy.rego",
 },
@@ -860,7 +860,7 @@ command:
     id: "coco-production-checklist",
     title: "Review the production checklist",
     description:
-      "Before production, select the correct TEE RuntimeClass, review the Agent Policy, configure KBS Resource Policy, and provision the Attestation Service reference values.",
+      "I actually have no idea what this command is supposed to be doing",
     command: "coco production-checklist",
   },
 ];

@@ -784,13 +784,13 @@ description:
 '</ul>',
 command: "kubectl get runtimeclass",
 },
-  {
-    id: "coco-inspect-workload",
-    title: "Inspect the sample workload",
-    description:
-      "Review the official nginx example. It uses <code class='guide-code'>runtimeClassName: kata-qemu-coco-dev</code> and the containerd runtime-handler annotation.",
-    command: "cat nginx.yaml",
-  },
+{
+id: "coco-inspect-workload",
+title: "Inspect the sample workload",
+description:
+`Review the <b><a href="https://confidentialcontainers.org/docs/getting-started/workload/#creating-a-sample-confidential-containers-workload" target="_blank" rel="noopener noreferrer">official nginx example</a></b>.<br/>It uses <code class="guide-code">runtimeClassName: kata-qemu-coco-dev</code> and the containerd runtime-handler annotation.`,
+command: "cat nginx.yaml",
+},
   {
     id: "coco-apply-workload",
     title: "Create a confidential workload",

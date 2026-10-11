@@ -819,7 +819,11 @@ command: "cat nginx.yaml",
 id: "coco-apply-workload",
 title: "Create a confidential workload",
 description:
-`Apply the sample Pod. The <b><a href="https://confidentialcontainers.org/docs/getting-started/prerequisites/hardware/nontee/" target="_blank" rel="noopener noreferrer">development</a></b> runtime is useful for validating the Confidential Computing integration, but it does not provide a hardware-backed security boundary.`,
+`Apply the sample Pod.` +
+`<ul>` +
+`<li>The <b><a href="https://confidentialcontainers.org/docs/getting-started/prerequisites/hardware/nontee/" target="_blank" rel="noopener noreferrer">development</a></b> runtime is useful for validating the Confidential Computing integration.</li>` +
+`<li>However, it does not provide a hardware-backed security boundary.</li>` +
+`</ul>`,
 command: "kubectl apply -f nginx.yaml",
 },
   {

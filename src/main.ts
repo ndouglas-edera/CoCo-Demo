@@ -879,7 +879,7 @@ async function initTerminalDemo() {
         <h2 id="hero-title">CONFIDENTIAL<br />CONTAINERS</h2>
         <p>
           Protect containers while they are running using confidential computing
-           and hardware-backed Trusted Execution Environment (TEE) isolation.
+          and a hardware-backed Trusted Execution Environment (TEE) for isolation.
         </p>
         <button id="hero-run-btn" class="hero-cta" type="button">Jump to Terminal</button>
       </section>

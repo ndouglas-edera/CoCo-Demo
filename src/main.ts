@@ -763,7 +763,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     id: "coco-install",
     title: "Install Confidential Containers",
     description:
-      "Install Confidential Containers with the official CoCo Helm chart. This is the documented starting point for the getting-started flow.",
+      'Install Confidential Containers with the <a href="https://github.com/confidential-containers/charts" target="_blank" rel="noopener noreferrer">official CoCo Helm chart</a>. This is the documented starting point for the getting-started flow.',
     command: "helm install coco oci://ghcr.io/confidential-containers/charts/confidential-containers \\\n  --namespace coco-system \\\n  --create-namespace",
   },
   {
@@ -987,10 +987,7 @@ async function initTerminalDemo() {
 
             <div class="suggested-command">
               <code id="suggested-command" class="suggested-command-code"></code>
-              <div class="suggested-command-actions">
-                <button id="copy-command-btn" class="use-command-btn" type="button">Copy</button>
-                <button id="use-command-btn" class="use-command-btn" type="button">Use command</button>
-              </div>
+              <button id="use-command-btn" class="use-command-btn" type="button">Use command</button>
             </div>
           </div>
 
@@ -1088,18 +1085,17 @@ async function initTerminalDemo() {
   document.head.appendChild(guideCodeStyle);
   const suggestedCommand =
     document.querySelector<HTMLElement>("#suggested-command")!;
-  const copyCommandBtn =
-    document.querySelector<HTMLButtonElement>("#copy-command-btn")!;
   const suggestedCommandStyle = document.createElement("style");
   suggestedCommandStyle.textContent = `
     .suggested-command { display:flex; align-items:stretch; gap:12px; min-width:0; }
     .suggested-command-code { display:block; flex:1 1 auto; min-width:0; overflow-x:auto; white-space:pre; line-height:1.65; padding:14px 18px; }
-    .suggested-command-actions { display:flex; flex:0 0 auto; align-items:stretch; gap:8px; }
-    .suggested-command-actions .use-command-btn { white-space:nowrap; }
+    .suggested-command > .use-command-btn { flex:0 0 auto; white-space:nowrap; }
+    .guide-description a { color:inherit; text-decoration:underline; text-decoration-color:#00bfb3; text-underline-offset:3px; }
+    .guide-description a:hover { color:#007e76; }
     .shell-command { color:#b8ff3c; }
     .shell-command .shell-keyword { color:#00e5d4; font-weight:700; }
     .shell-command .shell-flag { color:#f2f7a1; }
-    @media (max-width: 700px) { .suggested-command { flex-direction:column; } .suggested-command-actions { justify-content:flex-end; } }
+    @media (max-width: 700px) { .suggested-command { flex-direction:column; } .suggested-command > .use-command-btn { align-self:flex-end; } }
   `;
   document.head.appendChild(suggestedCommandStyle);
   const guideStepList =
@@ -2085,32 +2081,10 @@ const renderNodes = () => {
     const index = getSelectedDemoStepIndex();
     const step = activeDemoSteps[index];
     // The terminal input is a single-line field, so collapse shell continuations
-    // for execution while retaining the multiline version in the guide/copy action.
+    // for execution while retaining the readable multiline version in the guide.
     input.value = step.command.replace(/\\\r?\n\s*/g, " ").replace(/\s+/g, " ").trim();
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
-  });
-  copyCommandBtn.addEventListener("click", async () => {
-    const index = getSelectedDemoStepIndex();
-    const command = activeDemoSteps[index].command;
-    try {
-      await navigator.clipboard.writeText(command);
-      copyCommandBtn.textContent = "Copied!";
-      window.setTimeout(() => { copyCommandBtn.textContent = "Copy"; }, 1600);
-    } catch {
-      // Clipboard access may be unavailable outside a secure context.
-      const temporary = document.createElement("textarea");
-      temporary.value = command;
-      temporary.setAttribute("readonly", "");
-      temporary.style.position = "fixed";
-      temporary.style.opacity = "0";
-      document.body.appendChild(temporary);
-      temporary.select();
-      const copied = document.execCommand("copy");
-      temporary.remove();
-      copyCommandBtn.textContent = copied ? "Copied!" : "Select command to copy";
-      window.setTimeout(() => { copyCommandBtn.textContent = "Copy"; }, 1800);
-    }
   });
   document
     .querySelector<HTMLButtonElement>("#hero-run-btn")!

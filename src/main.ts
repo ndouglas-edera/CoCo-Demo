@@ -764,8 +764,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     title: "Install Confidential Containers",
     description:
       "Install Confidential Containers with the official CoCo Helm chart. This is the documented starting point for the getting-started flow.",
-    command:
-      "helm install coco oci://ghcr.io/confidential-containers/charts/confidential-containers --namespace coco-system --create-namespace",
+    command: "helm install coco oci://ghcr.io/confidential-containers/charts/confidential-containers \\\n  --namespace coco-system \\\n  --create-namespace",
   },
   {
     id: "coco-ready",
@@ -987,10 +986,11 @@ async function initTerminalDemo() {
             <div id="guide-description" class="guide-description"></div>
 
             <div class="suggested-command">
-              <code id="suggested-command"></code>
-              <button id="use-command-btn" class="use-command-btn">
-                Use command
-              </button>
+              <code id="suggested-command" class="suggested-command-code"></code>
+              <div class="suggested-command-actions">
+                <button id="copy-command-btn" class="use-command-btn" type="button">Copy</button>
+                <button id="use-command-btn" class="use-command-btn" type="button">Use command</button>
+              </div>
             </div>
           </div>
 
@@ -1088,6 +1088,20 @@ async function initTerminalDemo() {
   document.head.appendChild(guideCodeStyle);
   const suggestedCommand =
     document.querySelector<HTMLElement>("#suggested-command")!;
+  const copyCommandBtn =
+    document.querySelector<HTMLButtonElement>("#copy-command-btn")!;
+  const suggestedCommandStyle = document.createElement("style");
+  suggestedCommandStyle.textContent = `
+    .suggested-command { display:flex; align-items:stretch; gap:12px; min-width:0; }
+    .suggested-command-code { display:block; flex:1 1 auto; min-width:0; overflow-x:auto; white-space:pre; line-height:1.65; padding:14px 18px; }
+    .suggested-command-actions { display:flex; flex:0 0 auto; align-items:stretch; gap:8px; }
+    .suggested-command-actions .use-command-btn { white-space:nowrap; }
+    .shell-command { color:#b8ff3c; }
+    .shell-command .shell-keyword { color:#00e5d4; font-weight:700; }
+    .shell-command .shell-flag { color:#f2f7a1; }
+    @media (max-width: 700px) { .suggested-command { flex-direction:column; } .suggested-command-actions { justify-content:flex-end; } }
+  `;
+  document.head.appendChild(suggestedCommandStyle);
   const guideStepList =
     document.querySelector<HTMLDivElement>("#guide-step-list")!;
   const guideProgress =
@@ -1998,7 +2012,11 @@ const renderNodes = () => {
           : ""
       }`;
     guideDescription.innerHTML = currentStep.description;
-    suggestedCommand.innerText = currentStep.command;
+    const formattedCommand = currentStep.command;
+    const escapedCommand = escapeHtml(formattedCommand);
+    suggestedCommand.innerHTML = `<span class="shell-command">${escapedCommand
+      .replace(/\b(helm|kubectl|kbs-client|coco)\b/g, '<span class="shell-keyword">$1</span>')
+      .replace(/(--[a-z-]+)/g, '<span class="shell-flag">$1</span>')}</span>`;
     guideStepList.innerHTML = activeDemoSteps.map((step, index) => {
       const done = completedDemoSteps.has(step.id);
       const current = index === currentIndex && !done;
@@ -2066,9 +2084,33 @@ const renderNodes = () => {
   useCommandBtn.addEventListener("click", () => {
     const index = getSelectedDemoStepIndex();
     const step = activeDemoSteps[index];
-    input.value = step.command;
+    // The terminal input is a single-line field, so collapse shell continuations
+    // for execution while retaining the multiline version in the guide/copy action.
+    input.value = step.command.replace(/\\\r?\n\s*/g, " ").replace(/\s+/g, " ").trim();
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
+  });
+  copyCommandBtn.addEventListener("click", async () => {
+    const index = getSelectedDemoStepIndex();
+    const command = activeDemoSteps[index].command;
+    try {
+      await navigator.clipboard.writeText(command);
+      copyCommandBtn.textContent = "Copied!";
+      window.setTimeout(() => { copyCommandBtn.textContent = "Copy"; }, 1600);
+    } catch {
+      // Clipboard access may be unavailable outside a secure context.
+      const temporary = document.createElement("textarea");
+      temporary.value = command;
+      temporary.setAttribute("readonly", "");
+      temporary.style.position = "fixed";
+      temporary.style.opacity = "0";
+      document.body.appendChild(temporary);
+      temporary.select();
+      const copied = document.execCommand("copy");
+      temporary.remove();
+      copyCommandBtn.textContent = copied ? "Copied!" : "Select command to copy";
+      window.setTimeout(() => { copyCommandBtn.textContent = "Copy"; }, 1800);
+    }
   });
   document
     .querySelector<HTMLButtonElement>("#hero-run-btn")!
@@ -6788,7 +6830,8 @@ coco-runtime-9k2m      1/1     Running   0          1s</span>`,
         }
         commandHistory.push(rawCmd);
         printCommand(rawCmd);
-        let tokens = tokenize(rawCmd);
+        const normalizedCmd = rawCmd.replace(/\\\r?\n\s*/g, " ").trim();
+        let tokens = tokenize(normalizedCmd);
         if (tokens[0] === "sudo") {
           tokens = tokens.slice(1);
         }
@@ -7308,6 +7351,12 @@ coco-runtime-9k2m      1/1     Running   0          1s</span>`,
         }
 
         if (tokens[0] === "helm") {
+          // CoCo's Helm install is handled here before the generic Helm fallback;
+          // otherwise the unsupported-command branch prevents the CoCo handler running.
+          if (tokens[1] === "install" && tokens[2] === "coco") {
+            const cocoHandled = await handleCocoCommand(normalizedCmd, tokens);
+            if (cocoHandled) return;
+          }
           if (
             tokens[1] === "upgrade" &&
             tokens[2] === "falco" &&

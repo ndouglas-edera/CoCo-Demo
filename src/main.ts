@@ -914,7 +914,12 @@ command: "cat nginx-secure.yaml",
     id: "coco-logs-blocked",
     title: "Attempt to read the protected Pod's logs",
     description:
-      "Because the policy also sets <code class='guide-code'>ReadStreamRequest := false</code>, the agent won't stream the container's stdout/stderr out of the TEE, so the logs come back empty. <br/>Compare with <code class='guide-code'>kubectl logs nginx</code>.",
+      "Because the policy also sets <code class='guide-code'>ReadStreamRequest := false</code>:" +
+      "<ul>" +
+      "<li>The agent won't stream the container's stdout/stderr out of the TEE.</li>" +
+      "<li>The logs therefore come back empty.</li>" +
+      "</ul>" +
+      "Compare this with <code class='guide-code'>kubectl logs nginx</code>.",
     command: "kubectl logs nginx-secure",
   },
 {

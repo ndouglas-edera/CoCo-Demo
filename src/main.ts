@@ -903,7 +903,7 @@ async function initTerminalDemo() {
       </header>
 
       <section class="brand-hero" aria-labelledby="hero-title">
-        <div class="hero-eyebrow">WEBERNETES DEMO</div>
+        <div class="hero-eyebrow">CONFIDENTIAL CONTAINERS DEMO</div>
         <h2 id="hero-title">CONTAIN YOUR<br />WORKLOADS</h2>
         <p>
           Edera is the secure execution platform for all software — built so every
@@ -912,7 +912,7 @@ async function initTerminalDemo() {
         <button id="hero-run-btn" class="hero-cta" type="button">Jump to Terminal</button>
       </section>
 
-      <div class="demo-kicker">Web­ernetes × Edera - interactive isolation demo</div>
+      <div class="demo-kicker">Web­ernetes × Confidential Computing - interactive demo</div>
 
       <div class="dashboard-grid">
 

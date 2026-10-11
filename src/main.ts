@@ -871,26 +871,20 @@ async function initTerminalDemo() {
 
       <header class="top-header">
         <a href="https://edera.dev" class="logo-link">EDERA</a>
-        <a
-          href="https://on.edera.dev"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="edera-free-cta"
-          style="justify-self:end;align-self:center;display:inline-flex;align-items:center;padding:12px 22px;border-radius:999px;background:var(--edera-lime);color:var(--edera-ink);font-weight:800;text-decoration:none;white-space:nowrap;"
-        >Try Edera for free →</a>
+        <a href="https://docs.edera.dev/guides/security/confidential-computing/" target="_blank" rel="noopener noreferrer" class="edera-free-cta" style="justify-self:end;align-self:center;display:inline-flex;align-items:center;padding:12px 22px;border-radius:999px;background:var(--edera-lime);color:var(--edera-ink);font-weight:800;text-decoration:none;white-space:nowrap;">Check our docs →</a>
       </header>
 
       <section class="brand-hero" aria-labelledby="hero-title">
-        <div class="hero-eyebrow">CONFIDENTIAL CONTAINERS DEMO</div>
-        <h2 id="hero-title">CONTAIN YOUR<br />WORKLOADS</h2>
+        <div class="hero-eyebrow">INTERACTIVE DEMO</div>
+        <h2 id="hero-title">CONFIDENTIAL<br />CONTAINERS</h2>
         <p>
-          Edera is the secure execution platform for all software — built so every
-          untrusted workload runs trusted, and free to move at the speed of your business.
+          Protect containers while they are running using confidential computing
+           and hardware-backed Trusted Execution Environment (TEE) isolation.
         </p>
         <button id="hero-run-btn" class="hero-cta" type="button">Jump to Terminal</button>
       </section>
 
-      <div class="demo-kicker">Web­ernetes × Confidential Computing - interactive demo</div>
+      <div class="demo-kicker">Web­ernetes × Confidential Computing</div>
 
       <div class="dashboard-grid">
 

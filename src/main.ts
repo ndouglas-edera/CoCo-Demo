@@ -773,13 +773,15 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
       "Watch the <code class='guide-code'>coco-system</code> namespace until the Confidential Containers components report <code class='guide-code'>Running</code>.",
     command: "kubectl get pods -n coco-system --watch",
   },
-  {
-    id: "coco-runtimeclasses",
-    title: "Verify the RuntimeClasses",
-    description:
-      "List the RuntimeClasses installed by CoCo. The development runtime is intended for testing without TEE hardware; production runtimes must match the actual platform.",
-    command: "kubectl get runtimeclass",
-  },
+{
+id: "coco-runtimeclasses",
+title: "Verify the RuntimeClasses",
+description:
+"List the [RuntimeClasses](https://kubernetes.io/docs/concepts/containers/runtime-class/) installed by CoCo.\n\n" +
+"- The development runtime is intended for testing without [TEE hardware](https://en.wikipedia.org/wiki/Trusted_execution_environment).\n" +
+"- Production runtimes must match the actual platform.",
+command: "kubectl get runtimeclass",
+},
   {
     id: "coco-inspect-workload",
     title: "Inspect the sample workload",

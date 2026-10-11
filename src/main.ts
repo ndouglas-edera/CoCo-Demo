@@ -777,9 +777,11 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
 id: "coco-runtimeclasses",
 title: "Verify the RuntimeClasses",
 description:
-"List the [RuntimeClasses](https://kubernetes.io/docs/concepts/containers/runtime-class/) installed by CoCo.\n\n" +
-"- The development runtime is intended for testing without [TEE hardware](https://en.wikipedia.org/wiki/Trusted_execution_environment).\n" +
-"- Production runtimes must match the actual platform.",
+'List the <a href="https://kubernetes.io/docs/concepts/containers/runtime-class/" target="_blank" rel="noopener noreferrer">RuntimeClasses</a> installed by CoCo.' +
+'<ul>' +
+'<li>The development runtime is intended for testing without <a href="https://en.wikipedia.org/wiki/Trusted_execution_environment" target="_blank" rel="noopener noreferrer">TEE hardware</a>.</li>' +
+'<li>Production runtimes must match the actual platform.</li>' +
+'</ul>',
 command: "kubectl get runtimeclass",
 },
   {

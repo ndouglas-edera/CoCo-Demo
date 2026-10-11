@@ -969,7 +969,7 @@ async function initTerminalDemo() {
           <div>
             <div class="guide-title" id="guide-title">🧭 Confidential Containers Guide</div>
             <div class="guide-subtitle" id="guide-subtitle">
-              Run the official Confidential Containers getting-started flow
+              Run the official Confidential Containers <a href="https://confidentialcontainers.org/docs/getting-started/installation/">Getting Started</a> flow
             </div>
           </div>
 

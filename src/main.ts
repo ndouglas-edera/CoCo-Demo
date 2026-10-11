@@ -840,7 +840,12 @@ command: "kubectl get pod nginx -o jsonpath='{.spec.runtimeClassName}'",
     id: "coco-runtimeclass-describe",
     title: "Describe the development RuntimeClass",
     description:
-      `A RuntimeClass is small but meaningful: the <code class="guide-code">Handler</code> selects the Kata shim in containerd, <code class="guide-code">Overhead</code> reserves CPU and memory for the pod's VM, and <code class="guide-code">Scheduling</code> limits pods to nodes where Kata is installed.`,
+      `A RuntimeClass is small but meaningful:` +
+      `<ul>` +
+      `<li><code class="guide-code">Handler</code> selects the Kata shim in containerd.</li>` +
+      `<li><code class="guide-code">Overhead</code> reserves CPU and memory for the pod's VM.</li>` +
+      `<li><code class="guide-code">Scheduling</code> limits pods to nodes where Kata is installed.</li>` +
+      `</ul>`,
     command: "kubectl describe runtimeclass kata-qemu-coco-dev",
   },
 {

@@ -141,6 +141,9 @@ interface DemoStep {
   description: string;
   command: string;
   optional?: boolean;
+  // Extra HTML shown below the suggested command (not part of the command
+  // that "Use command" inserts).
+  footnote?: string;
 }
 
 const NGINX_YAML_CONTENT = `apiVersion: v1
@@ -1132,6 +1135,18 @@ description:
 `Before considering moving Confidential Containers to production:     <ol>       <li>Select the correct TEE <code class="guide-code">RuntimeClass</code> for your environment.</li>       <li>Review the Agent Policy to ensure it is neither too strict nor too broad in scope.</li>       <li>Configure the KBS Resource Policy to decide which CoCo resources are released to attested workloads.</li>       <li>Finally, provision the Attestation Service to define how hardware evidence is evaluated against your trust requirements.</li>     </ol>     <p>In this mixed cluster, the Attestation Service needs reference values for <b>both</b> Intel TDX and AMD SEV-SNP guests.</p>`,
 command:
 "kbs-client --url <kbs-url> config --admin-token-file <admin-token-file> set-attestation-policy --policy-file attestation-policy.rego",
+footnote:
+  `<div class="guide-footnote-title">Limitations of Confidential Computing</div>` +
+  `<ul>` +
+  `<li>It requires specific TEE hardware, which comes with a few limitations:` +
+  `<ul>` +
+  `<li><b>Cost</b></li>` +
+  `<li><b>Compatibility</b></li>` +
+  `<li><b>Cloud support</b></li>` +
+  `</ul>` +
+  `</li>` +
+  `<li>There is also a tradeoff between convenience and security. Ideally, only the most sensitive components run inside the TEE. In practice, most deployments put an entire microVM in the TEE, so a vulnerability in the guest OS or anything else inside it can still impact your workload.</li>` +
+  `</ul>`,
 },
 ];
 
@@ -1263,6 +1278,8 @@ async function initTerminalDemo() {
               <code id="suggested-command" class="suggested-command-code"></code>
               <button id="use-command-btn" class="use-command-btn" type="button">Use command</button>
             </div>
+
+            <div id="guide-footnote" class="guide-footnote" hidden></div>
           </div>
 
           <div class="guide-side">
@@ -1347,6 +1364,8 @@ async function initTerminalDemo() {
   document.head.appendChild(guideCodeStyle);
   const suggestedCommand =
     document.querySelector<HTMLElement>("#suggested-command")!;
+  const guideFootnote =
+    document.querySelector<HTMLDivElement>("#guide-footnote")!;
   const suggestedCommandStyle = document.createElement("style");
   suggestedCommandStyle.textContent = `
     .suggested-command { display:flex; align-items:stretch; gap:12px; min-width:0; }
@@ -1354,6 +1373,11 @@ async function initTerminalDemo() {
     .suggested-command > .use-command-btn { flex:0 0 auto; white-space:nowrap; }
     .guide-description a { color:inherit; text-decoration:underline; text-decoration-color:#00bfb3; text-underline-offset:3px; }
     .guide-description a:hover { color:#007e76; }
+    .guide-footnote { margin-top:16px; padding:14px 18px; border-left:4px solid #00bfb3; border-radius:6px; background:rgba(0,191,179,0.08); line-height:1.55; }
+    .guide-footnote-title { font-weight:800; margin-bottom:6px; }
+    .guide-footnote ul { margin:0; padding-left:20px; }
+    .guide-footnote ul ul { margin-top:4px; }
+    .guide-footnote li + li { margin-top:4px; }
     .shell-command { color:#b8ff3c; }
     .shell-command .shell-keyword { color:#00e5d4; font-weight:700; }
     .shell-command .shell-flag { color:#f2f7a1; }
@@ -2341,6 +2365,8 @@ const renderNodes = () => {
     suggestedCommand.innerHTML = `<span class="shell-command">${escapedCommand
       .replace(/\b(helm|kubectl|kbs-client|coco)\b/g, '<span class="shell-keyword">$1</span>')
       .replace(/(--[a-z-]+)/g, '<span class="shell-flag">$1</span>')}</span>`;
+    guideFootnote.innerHTML = currentStep.footnote ?? "";
+    guideFootnote.hidden = !currentStep.footnote;
     guideStepList.innerHTML = activeDemoSteps.map((step, index) => {
       const done = completedDemoSteps.has(step.id);
       const current = index === currentIndex && !done;

@@ -1059,7 +1059,7 @@ command: "kubectl get pod nginx -o jsonpath='{.spec.runtimeClassName}'",
 id: "coco-agent-policy",
 title: "Define a Kata Agent Policy",
 description:
-`<a href="https://confidentialcontainers.org/docs/getting-started/securing-workloads/#1-kata-agent-policy-inside-the-tee" target="_blank" rel="noopener noreferrer"><b>Agent Policy</b></a> runs inside the TEE and controls operations such as container <b>creation</b> and <b>exec</b>. <br/>In production, you will need to generate or at least review a policy appropriate to the workload.`,
+`<a href="https://confidentialcontainers.org/docs/getting-started/securing-workloads/#1-kata-agent-policy-inside-the-tee" target="_blank" rel="noopener noreferrer"><b>Agent Policy</b></a> runs inside the TEE and controls operations such as container <code class="guide-code">creation</code> and <code class="guide-code">exec</code>. <br/>In production, you will need to generate or at least review a policy appropriate to the workload.`,
 command: "cat agent-policy.rego",
 },
 {
@@ -1092,7 +1092,7 @@ command: "cat nginx-secure.yaml",
       "<li>The guest falls back to its default, permissive policy.</li>" +
       "<li><code class='guide-code'>kubectl exec</code> therefore simply works.</li>" +
       "</ul>" +
-      "Anyone with exec rights in the cluster could do the same.",
+      "Anyone with <code class='guide-code'>exec</code> rights in the cluster could do the same.",
     command: "kubectl exec nginx -- cat /etc/hostname",
   },
   {
@@ -1105,7 +1105,7 @@ command: "cat nginx-secure.yaml",
       "<li>The agent evaluates it against the policy <b>inside the TEE</b>.</li>" +
       "<li>It refuses with <code class='guide-code'>PermissionDenied</code>.</li>" +
       "</ul>" +
-      "Not even a <b>cluster-admin</b> role or the literal <b>host</b> can override this.",
+      "Not even a <code class='guide-code'>cluster-admin</code> role or the literal <b>host</b> can override this.",
     command: "kubectl exec nginx-secure -- cat /etc/hostname",
   },
   {
@@ -1145,8 +1145,11 @@ footnote:
   `<li><b>Cloud support</b></li>` +
   `</ul>` +
   `</li>` +
-  `<li>There is also a tradeoff between convenience and security. Ideally, only the most sensitive components run inside the TEE. In practice, most deployments put an entire microVM in the TEE, so a vulnerability in the guest OS or anything else inside it can still impact your workload.</li>` +
-  `<li>It is simply too expensive to just use for an isolation use-case. You only want Confidential Computing if you also need to ensure that your infrastructure (admins, etc) cannott tamper with the workload. Use cases include</li>` +
+  `<li>There is also a tradeoff between convenience and security.</li>` + 
+  `<li>Ideally, only the most sensitive components run inside the TEE.</li>` +
+  `<li>In practice, most deployments put an entire microVM in the TEE, so a vulnerability in the guest OS or anything else inside it can still impact your workload.</li>` +
+  `<li>It is simply too expensive to just use for an isolation use-case. You only want Confidential Computing if you also need to ensure that your infrastructure (admins, etc) cannott tamper with the workload.</li>` + 
+  `<li>Use cases include</li>` +
   `<ul>` +
   `<li><b>Healthcare</b></li>` +
   `<li><b>Finance</b></li>` +

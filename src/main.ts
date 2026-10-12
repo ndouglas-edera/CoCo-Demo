@@ -227,6 +227,98 @@ spec:
     image: nginx:1.29.4
     imagePullPolicy: IfNotPresent`;
 
+// ---------------------------------------------------------------------------
+// Mixed-TEE cluster: node-2 is an Intel TDX host, node-3 is an AMD SEV-SNP
+// host. Node Feature Discovery (NFD) publishes the cpu-security labels below.
+// ---------------------------------------------------------------------------
+type TeePlatform = "tdx" | "snp";
+
+const TEE_NODE_LABEL: Record<TeePlatform, string> = {
+  tdx: "feature.node.kubernetes.io/cpu-security.tdx.enabled",
+  snp: "feature.node.kubernetes.io/cpu-security.sev.snp.enabled",
+};
+
+const TEE_DISPLAY_NAME: Record<TeePlatform, string> = {
+  tdx: "Intel TDX",
+  snp: "AMD SEV-SNP",
+};
+
+// Which TEE a RuntimeClass needs on the host. Non-TEE runtimes (coco-dev,
+// kata-remote, edera, ...) return undefined and can run on any Kata node.
+const runtimeClassTee = (name?: string): TeePlatform | undefined => {
+  if (name === "kata-qemu-tdx" || name === "kata-qemu-nvidia-gpu-tdx") return "tdx";
+  if (name === "kata-qemu-snp" || name === "kata-qemu-nvidia-gpu-snp") return "snp";
+  return undefined;
+};
+
+const nodeTee = (labels: Record<string, string>): TeePlatform | undefined => {
+  if (labels[TEE_NODE_LABEL.tdx] === "true") return "tdx";
+  if (labels[TEE_NODE_LABEL.snp] === "true") return "snp";
+  return undefined;
+};
+
+const COCO_TEE_RUNTIMECLASSES_YAML_CONTENT = `# The CoCo chart's default selector (katacontainers.io/kata-runtime=true)
+# matches every Kata node, so it cannot tell a TDX host from an SEV-SNP host.
+# Pin each TEE RuntimeClass to nodes that actually have that hardware, using
+# the labels published by Node Feature Discovery.
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata-qemu-tdx
+handler: kata-qemu-tdx
+overhead:
+  podFixed:
+    cpu: "1"
+    memory: 2048Mi
+scheduling:
+  nodeSelector:
+    katacontainers.io/kata-runtime: "true"
+    ${TEE_NODE_LABEL.tdx}: "true"
+---
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kata-qemu-snp
+handler: kata-qemu-snp
+overhead:
+  podFixed:
+    cpu: "1"
+    memory: 2048Mi
+scheduling:
+  nodeSelector:
+    katacontainers.io/kata-runtime: "true"
+    ${TEE_NODE_LABEL.snp}: "true"`;
+
+const COCO_NGINX_TEE_YAML_CONTENT = `# One workload per TEE. Neither Pod sets a nodeSelector of its own:
+# placement comes entirely from its RuntimeClass.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-tdx
+  namespace: default
+  annotations:
+    io.containerd.cri.runtime-handler: kata-qemu-tdx
+spec:
+  runtimeClassName: kata-qemu-tdx
+  containers:
+    - name: nginx
+      image: nginx:1.29.4
+      imagePullPolicy: IfNotPresent
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-snp
+  namespace: default
+  annotations:
+    io.containerd.cri.runtime-handler: kata-qemu-snp
+spec:
+  runtimeClassName: kata-qemu-snp
+  containers:
+    - name: nginx
+      image: nginx:1.29.4
+      imagePullPolicy: IfNotPresent`;
+
 const COCO_AGENT_POLICY_REGO = `package agent_policy
 import rego.v1
 
@@ -290,6 +382,12 @@ import rego.v1
 
 # Example policy placeholder: production deployments should provision
 # platform-specific reference values and trust requirements.
+#
+# This cluster mixes TEEs, so reference values are needed for BOTH:
+#   - Intel TDX:   TD measurements (MRTD / RTMRs) of the guest
+#   - AMD SEV-SNP: the SNP launch measurement of the guest
+# The Attestation Service verifies each platform's evidence with its own
+# verifier, so a single Trustee/KBS can serve both node types.
 default allow = false`;
 
 const HARDENED_VESSEL_YAML_CONTENT = `apiVersion: v1
@@ -852,20 +950,108 @@ command: "kubectl get pod nginx -o jsonpath='{.spec.runtimeClassName}'",
       `</ul>`,
     command: "kubectl describe runtimeclass kata-qemu-coco-dev",
   },
-{
-id: "coco-tdx",
-title: "Select the Intel TDX production runtime",
-description:
-`<p>For <a href="https://www.intel.com/content/www/us/en/products/details/processors/xeon/features/trust-domain-extensions.html" target="_blank" rel="noopener noreferrer"><b>Intel TDX</b></a> hardware, the documented production RuntimeClass is <code class="guide-code">kata-qemu-tdx</code>.</p>     <p>Compare the <code class="guide-code">Overhead</code> with the development runtime:</p>     <ul>       <li>Every TEE pod is a confidential VM.</li>       <li>The scheduler reserves capacity for it.</li>     </ul>     <p>Do not attempt to use this on hardware that does not support TDX.</p>`,
-command: "kubectl describe runtimeclass kata-qemu-tdx",
-},
-{
-id: "coco-snp",
-title: "Compare the AMD SEV-SNP runtime",
-description:
-`For <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/sev-snp.html" target="_blank" rel="noopener noreferrer"><b>AMD SEV-SNP</b></a> hardware, use <code class="guide-code">kata-qemu-snp</code>. <br/>Note that the RuntimeClass itself does not check your hardware; <br/>selection must match the underlying TEE platform.`,
-command: "kubectl describe runtimeclass kata-qemu-snp",
-},
+  {
+    id: "coco-tee-nodes",
+    title: "Find the TEE hardware in the cluster",
+    description:
+      `This cluster mixes TEE vendors:` +
+      `<ul>` +
+      `<li><code class="guide-code">node-2</code> is an <b>Intel TDX</b> host.</li>` +
+      `<li><code class="guide-code">node-3</code> is an <b>AMD SEV-SNP</b> host.</li>` +
+      `</ul>` +
+      `<b><a href="https://kubernetes-sigs.github.io/node-feature-discovery/" target="_blank" rel="noopener noreferrer">Node Feature Discovery</a></b> publishes <code class="guide-code">cpu-security</code> labels. Use <code class="guide-code">-L</code> to show them as columns.`,
+    command:
+      "kubectl get nodes -L feature.node.kubernetes.io/cpu-security.tdx.enabled,feature.node.kubernetes.io/cpu-security.sev.snp.enabled",
+  },
+  {
+    id: "coco-tdx",
+    title: "Inspect the Intel TDX production runtime",
+    description:
+      `<p>For <a href="https://www.intel.com/content/www/us/en/products/details/processors/xeon/features/trust-domain-extensions.html" target="_blank" rel="noopener noreferrer"><b>Intel TDX</b></a> hardware, the documented production RuntimeClass is <code class="guide-code">kata-qemu-tdx</code>.</p>` +
+      `<ul>` +
+      `<li>Compare the <code class="guide-code">Overhead</code> with the development runtime: every TEE pod is a confidential VM.</li>` +
+      `<li>Now look at <code class="guide-code">Scheduling</code>: the default selector only checks that Kata is installed.</li>` +
+      `<li>That label is on <b>both</b> workers, including the SEV-SNP host.</li>` +
+      `</ul>`,
+    command: "kubectl describe runtimeclass kata-qemu-tdx",
+  },
+  {
+    id: "coco-snp",
+    title: "Inspect the AMD SEV-SNP runtime",
+    description:
+      `<p>For <a href="https://www.amd.com/en/developer/sev.html" target="_blank" rel="noopener noreferrer"><b>AMD SEV-SNP</b></a> hardware, use <code class="guide-code">kata-qemu-snp</code>. It has the same generic selector.</p>` +
+      `<ul>` +
+      `<li>The RuntimeClass itself does not check your hardware.</li>` +
+      `<li><code class="guide-code">kata-qemu-snp</code> launches a confidential VM, so the host must be bare metal with SEV-SNP enabled.</li>` +
+      `<li>Cloud SEV-SNP instances are already guests and cannot launch nested SNP VMs; CoCo uses <code class="guide-code">kata-remote</code> (peer pods) there.</li>` +
+      `</ul>`,
+    command: "kubectl describe runtimeclass kata-qemu-snp",
+  },
+  {
+    id: "coco-tee-apply",
+    title: "Deploy one workload per TEE",
+    description:
+      `<p>Apply two Pods: <code class="guide-code">nginx-tdx</code> and <code class="guide-code">nginx-snp</code>.</p>` +
+      `<ul>` +
+      `<li>Neither sets its own <code class="guide-code">nodeSelector</code>.</li>` +
+      `<li>Placement comes entirely from the RuntimeClass.</li>` +
+      `</ul>` +
+      `<p>With the default selectors, what could go wrong?</p>`,
+    command: "kubectl apply -f nginx-tee.yaml",
+  },
+  {
+    id: "coco-tee-mismatch",
+    title: "Check where the workloads landed",
+    description:
+      `<p>The scheduler is free to pick <b>any</b> Kata node for either Pod.</p>` +
+      `<ul>` +
+      `<li><code class="guide-code">nginx-tdx</code> got lucky.</li>` +
+      `<li><code class="guide-code">nginx-snp</code> was placed on the TDX host and is stuck in <code class="guide-code">ContainerCreating</code>.</li>` +
+      `</ul>` +
+      `<p>Run <code class="guide-code">kubectl describe pod nginx-snp</code> to see the sandbox error.</p>`,
+    command: "kubectl get pods -o wide",
+  },
+  {
+    id: "coco-tee-pin-inspect",
+    title: "Pin each RuntimeClass to its hardware",
+    description:
+      `<p>Fix the problem on the <b>RuntimeClass</b>, not on every workload.</p>` +
+      `<ul>` +
+      `<li>Add the NFD TEE label to each RuntimeClass's <code class="guide-code">scheduling.nodeSelector</code>.</li>` +
+      `<li>Kubernetes merges that selector into every Pod that uses the RuntimeClass at admission time.</li>` +
+      `</ul>`,
+    command: "cat tee-runtimeclasses.yaml",
+  },
+  {
+    id: "coco-tee-pin-apply",
+    title: "Apply the pinned RuntimeClasses",
+    description:
+      `<p>Update both RuntimeClasses in place.</p>` +
+      `<ul>` +
+      `<li>The RuntimeClasses are Helm-managed, so a later <code class="guide-code">helm upgrade</code> can revert this.</li>` +
+      `<li>In practice, keep the patch in your GitOps tooling and re-apply it after upgrades.</li>` +
+      `</ul>`,
+    command: "kubectl apply -f tee-runtimeclasses.yaml",
+  },
+  {
+    id: "coco-tee-replace",
+    title: "Recreate the workloads",
+    description:
+      `<p>The selector is merged when a Pod is <b>admitted</b>, so existing Pods keep their old placement.</p>` +
+      `<p><code class="guide-code">kubectl replace --force</code> deletes and recreates both Pods so they pick up the pinned selectors.</p>`,
+    command: "kubectl replace --force -f nginx-tee.yaml",
+  },
+  {
+    id: "coco-tee-placement",
+    title: "Verify TEE-aware placement",
+    description:
+      `<ul>` +
+      `<li><code class="guide-code">nginx-tdx</code> should be Running on <code class="guide-code">node-2</code>.</li>` +
+      `<li><code class="guide-code">nginx-snp</code> should be Running on <code class="guide-code">node-3</code>.</li>` +
+      `</ul>` +
+      `<p>If a TEE node is unavailable, its Pods now stay <code class="guide-code">Pending</code> instead of landing on the wrong hardware. That is the correct failure.</p>`,
+    command: "kubectl get pods -o wide",
+  },
 {
 id: "coco-agent-policy",
 title: "Define a Kata Agent Policy",
@@ -943,17 +1129,10 @@ command:
 id: "coco-attestation-policy",
 title: "Configure the Attestation Service Policy",
 description:
-`Before considering moving Confidential Containers to production:     <ol>       <li>Select the correct TEE <code class="guide-code">RuntimeClass</code> for your environment.</li>       <li>Review the Agent Policy to ensure it is neither too strict nor too broad in scope.</li>       <li>Configure the KBS Resource Policy to decide which CoCo resources are released to attested workloads.</li>       <li>Finally, provision the Attestation Service to define how hardware evidence is evaluated against your trust requirements.</li>     </ol>`,
+`Before considering moving Confidential Containers to production:     <ol>       <li>Select the correct TEE <code class="guide-code">RuntimeClass</code> for your environment.</li>       <li>Review the Agent Policy to ensure it is neither too strict nor too broad in scope.</li>       <li>Configure the KBS Resource Policy to decide which CoCo resources are released to attested workloads.</li>       <li>Finally, provision the Attestation Service to define how hardware evidence is evaluated against your trust requirements.</li>     </ol>     <p>In this mixed cluster, the Attestation Service needs reference values for <b>both</b> Intel TDX and AMD SEV-SNP guests.</p>`,
 command:
 "kbs-client --url <kbs-url> config --admin-token-file <admin-token-file> set-attestation-policy --policy-file attestation-policy.rego",
 },
-  {
-    id: "coco-production-checklist",
-    title: "I am not sure I have anything left to show",
-    description:
-      "I actually have no idea what this command is supposed to be doing",
-    command: "./end-lab.sh",
-  },
 ];
 
 async function initTerminalDemo() {
@@ -1251,6 +1430,8 @@ async function initTerminalDemo() {
     "/coco/initdata.toml": COCO_INITDATA_TOML,
     "/coco/resource-policy.rego": COCO_KBS_RESOURCE_POLICY_REGO,
     "/coco/attestation-policy.rego": COCO_ATTESTATION_POLICY_REGO,
+    "/coco/nginx-tee.yaml": COCO_NGINX_TEE_YAML_CONTENT,
+    "/coco/tee-runtimeclasses.yaml": COCO_TEE_RUNTIMECLASSES_YAML_CONTENT,
 
     "/nginx.yaml": COCO_NGINX_YAML_CONTENT,
     "/nginx-secure.yaml": COCO_NGINX_SECURE_YAML_CONTENT,
@@ -1258,6 +1439,8 @@ async function initTerminalDemo() {
     "/initdata.toml": COCO_INITDATA_TOML,
     "/resource-policy.rego": COCO_KBS_RESOURCE_POLICY_REGO,
     "/attestation-policy.rego": COCO_ATTESTATION_POLICY_REGO,
+    "/nginx-tee.yaml": COCO_NGINX_TEE_YAML_CONTENT,
+    "/tee-runtimeclasses.yaml": COCO_TEE_RUNTIMECLASSES_YAML_CONTENT,
     "/edera/pod-nginx.yaml": NGINX_YAML_CONTENT,
     "/edera/runtimeclass-edera.yaml": RUNTIMECLASS_EDERA_YAML_CONTENT,
     "/edera/pod-hardened-vessel.yaml": HARDENED_VESSEL_YAML_CONTENT,
@@ -1353,12 +1536,16 @@ vfio_pci`;
     "/coco/initdata.toml": { size: COCO_INITDATA_TOML.length, modified: "Oct 11 11:00" },
     "/coco/resource-policy.rego": { size: COCO_KBS_RESOURCE_POLICY_REGO.length, modified: "Oct 11 11:00" },
     "/coco/attestation-policy.rego": { size: COCO_ATTESTATION_POLICY_REGO.length, modified: "Oct 11 11:00" },
+    "/coco/nginx-tee.yaml": { size: COCO_NGINX_TEE_YAML_CONTENT.length, modified: "Oct 12 09:00" },
+    "/coco/tee-runtimeclasses.yaml": { size: COCO_TEE_RUNTIMECLASSES_YAML_CONTENT.length, modified: "Oct 12 09:00" },
     "/nginx.yaml": { size: COCO_NGINX_YAML_CONTENT.length, modified: "Oct 11 11:00" },
     "/nginx-secure.yaml": { size: COCO_NGINX_SECURE_YAML_CONTENT.length, modified: "Oct 11 11:00" },
     "/agent-policy.rego": { size: COCO_AGENT_POLICY_REGO.length, modified: "Oct 11 11:00" },
     "/initdata.toml": { size: COCO_INITDATA_TOML.length, modified: "Oct 11 11:00" },
     "/resource-policy.rego": { size: COCO_KBS_RESOURCE_POLICY_REGO.length, modified: "Oct 11 11:00" },
     "/attestation-policy.rego": { size: COCO_ATTESTATION_POLICY_REGO.length, modified: "Oct 11 11:00" },
+    "/nginx-tee.yaml": { size: COCO_NGINX_TEE_YAML_CONTENT.length, modified: "Oct 12 09:00" },
+    "/tee-runtimeclasses.yaml": { size: COCO_TEE_RUNTIMECLASSES_YAML_CONTENT.length, modified: "Oct 12 09:00" },
     "/edera/pod-nginx.yaml": {
       size: NGINX_YAML_CONTENT.length,
       modified: "Apr  9 07:48",
@@ -1571,8 +1758,8 @@ vfio_pci`;
     cocoInstalled = false;
     cocoSystemPodsReady = false;
     cocoWorkloadApplied = false;
-    cocoProductionRuntimeSelected = false;
     activeRuntimeClasses.clear();
+    pinnedTeeRuntimeClasses.clear();
     protectWorkloads = [];
     persistentVolumeClaims = [];
     persistentVolumes = [];
@@ -1618,7 +1805,9 @@ vfio_pci`;
   let cocoInstalled = false;
   let cocoSystemPodsReady = false;
   let cocoWorkloadApplied = false;
-  let cocoProductionRuntimeSelected = false;
+  // TEE RuntimeClasses whose scheduling.nodeSelector has been pinned to the
+  // matching NFD label (via tee-runtimeclasses.yaml).
+  const pinnedTeeRuntimeClasses = new Set<string>();
   // Pods ("namespace/name") whose Init-Data carries the restrictive Agent Policy.
   const cocoPolicyProtectedPods = new Set<string>();
 
@@ -1644,7 +1833,12 @@ vfio_pci`;
         : remoteRuntime
           ? { cpu: "250m", memory: "120Mi" }
           : { cpu: "1", memory: "2048Mi" },
-      nodeSelector: { "katacontainers.io/kata-runtime": "true" } as Record<string, string>,
+      nodeSelector: {
+        "katacontainers.io/kata-runtime": "true",
+        ...(pinnedTeeRuntimeClasses.has(name) && runtimeClassTee(name)
+          ? { [TEE_NODE_LABEL[runtimeClassTee(name)!]]: "true" }
+          : {}),
+      } as Record<string, string>,
       helmManaged: true,
       age: "2m",
     };
@@ -1721,6 +1915,8 @@ vfio_pci`;
         "kubernetes.io/hostname": "node-2",
         "kubernetes.io/os": "linux",
         "node-role.kubernetes.io/worker": "",
+        "feature.node.kubernetes.io/cpu-model.vendor_id": "Intel",
+        [TEE_NODE_LABEL.tdx]: "true",
       },
     },
     {
@@ -1740,6 +1936,9 @@ vfio_pci`;
         "kubernetes.io/hostname": "node-3",
         "kubernetes.io/os": "linux",
         "node-role.kubernetes.io/worker": "",
+        "feature.node.kubernetes.io/cpu-model.vendor_id": "AMD",
+        "feature.node.kubernetes.io/cpu-security.sev.enabled": "true",
+        [TEE_NODE_LABEL.snp]: "true",
       },
     },
   ];
@@ -1928,7 +2127,8 @@ vfio_pci`;
 
     podGrid.innerHTML = pods
       .map((pod) => {
-        const pending = pod.status === "Pending";
+        const pending =
+          pod.status === "Pending" || pod.status === "ContainerCreating";
         const failed = pod.status === "Failed";
         const cardStateClass = failed
           ? "pending"
@@ -1978,6 +2178,7 @@ const renderNodes = () => {
     .map((node) => {
       const usesEderaRuntime =
         node.labels.runtime === "edera";
+      const tee = nodeTee(node.labels);
 
       return `
         <div class="resource-card">
@@ -2004,6 +2205,16 @@ const renderNodes = () => {
                 ? `
                   <span class="runtimeclass-badge">
                     runtimeClassName: edera
+                  </span>
+                `
+                : ""
+            }
+
+            ${
+              tee
+                ? `
+                  <span class="runtimeclass-badge" title="${escapeHtml(TEE_NODE_LABEL[tee])}=true">
+                    ${escapeHtml(TEE_DISPLAY_NAME[tee])}
                   </span>
                 `
                 : ""
@@ -2281,7 +2492,8 @@ const renderNodes = () => {
       nodes.find(
         (node) =>
           node.status === "Ready" &&
-          !node.labels["node-role.kubernetes.io/control-plane"],
+          // The control-plane label's value is "", so test for the key.
+          !("node-role.kubernetes.io/control-plane" in node.labels),
       ) || nodes.find((node) => node.status === "Ready")
     );
   };
@@ -2316,9 +2528,49 @@ const renderNodes = () => {
         );
       }
 
+      // RuntimeClass admission: Kubernetes merges the RuntimeClass's
+      // scheduling.nodeSelector into the Pod spec when the Pod is admitted.
+      // Pods admitted earlier keep the selector they were admitted with.
+      if (
+        pod.runtimeClassName &&
+        activeRuntimeClasses.has(pod.runtimeClassName) &&
+        pod.runtimeClassName !== "edera"
+      ) {
+        pod.nodeSelector = {
+          ...(pod.nodeSelector || {}),
+          ...getRuntimeClassSpec(pod.runtimeClassName).nodeSelector,
+        };
+      }
+
       const targetNode = findSchedulableNode(pod);
 
       if (!targetNode) {
+        continue;
+      }
+
+      // The scheduler only sees labels. If a TEE RuntimeClass isn't pinned to
+      // matching hardware, the Pod can be bound to the wrong host and Kata
+      // fails to launch the confidential VM there.
+      const requiredTee = runtimeClassTee(pod.runtimeClassName);
+      const hostTee = nodeTee(targetNode.labels);
+      if (requiredTee && requiredTee !== hostTee) {
+        pod.status = "ContainerCreating";
+        pod.node = targetNode.name;
+        pod.ip = "<none>";
+        addEvent(
+          "Normal",
+          "Scheduled",
+          `pod/${pod.name}`,
+          `Successfully assigned ${pod.namespace}/${pod.name} to ${targetNode.name}`,
+        );
+        addEvent(
+          "Warning",
+          "FailedCreatePodSandBox",
+          `pod/${pod.name}`,
+          `Failed to create pod sandbox: rpc error: code = Unknown desc = failed to create shim task: ` +
+            `${TEE_DISPLAY_NAME[requiredTee]} is not available on host ${targetNode.name}` +
+            (hostTee ? ` (${TEE_DISPLAY_NAME[hostTee]} host)` : ""),
+        );
         continue;
       }
 
@@ -3391,6 +3643,26 @@ const renderNodes = () => {
           <div class="cli-help-command">
             <code>kubectl apply -f nginx-secure.yaml</code>
             <span>Deploy nginx with Init-Data carrying a restrictive Agent Policy.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl get nodes -L &lt;label,...&gt;</code>
+            <span>Show node labels (e.g. the NFD TDX / SEV-SNP labels) as columns.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl apply -f nginx-tee.yaml</code>
+            <span>Deploy one nginx Pod on Intel TDX and one on AMD SEV-SNP.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl apply -f tee-runtimeclasses.yaml</code>
+            <span>Pin kata-qemu-tdx and kata-qemu-snp to matching TEE nodes.</span>
+          </div>
+
+          <div class="cli-help-command">
+            <code>kubectl replace --force -f nginx-tee.yaml</code>
+            <span>Delete and recreate the TEE Pods so they pick up new selectors.</span>
           </div>
 
           <div class="cli-help-command">
@@ -4497,7 +4769,8 @@ Kernel isolation: enabled</span>`);
     // kata-deploy labels every node it installs Kata on; the CoCo
     // RuntimeClasses select on this label.
     for (const node of nodes) {
-      if (!node.labels["node-role.kubernetes.io/control-plane"]) {
+      // The control-plane label's value is "", so test for the key.
+      if (!("node-role.kubernetes.io/control-plane" in node.labels)) {
         node.labels["katacontainers.io/kata-runtime"] = "true";
       }
     }
@@ -4521,6 +4794,16 @@ Kernel isolation: enabled</span>`);
         image: "confidential-containers/runtime:latest",
         ip: "10.244.1.11",
         node: "node-2",
+        labels: { app: "coco-runtime" },
+      },
+      {
+        name: "coco-runtime-4xq8p",
+        namespace: "coco-system",
+        status: "Running",
+        age: "1s",
+        image: "confidential-containers/runtime:latest",
+        ip: "10.244.2.11",
+        node: "node-3",
         labels: { app: "coco-runtime" },
       },
     ];
@@ -4747,20 +5030,221 @@ Kernel isolation: enabled</span>`);
       }
     }
 
-    if (tokens[0] === "coco" && tokens[1] === "production-checklist") {
-      printPre(
-        `<span style="color:#dff7f0;">[x] Select the RuntimeClass that matches your TEE hardware
-[x] Review and embed a Kata Agent Policy in Init-Data
-[x] Configure the KBS Resource Policy
-[x] Provision Attestation Service reference values
-[!] Development runtime kata-qemu-coco-dev is for testing and provides no security guarantees</span>`,
-      );
-      cocoProductionRuntimeSelected = true;
-      markDemoStepComplete("coco-production-checklist");
-      return true;
+    if (tokens[0] === "kubectl") {
+      const teeHandled = handleTeeCommand(tokens);
+      if (teeHandled) {
+        return true;
+      }
     }
 
     return false;
+  };
+
+  // --- Mixed-TEE section ----------------------------------------------------
+  const TEE_WORKLOADS: Array<{ name: string; runtimeClassName: string }> = [
+    { name: "nginx-tdx", runtimeClassName: "kata-qemu-tdx" },
+    { name: "nginx-snp", runtimeClassName: "kata-qemu-snp" },
+  ];
+  const TEE_PINNED_RUNTIMECLASSES = ["kata-qemu-tdx", "kata-qemu-snp"];
+
+  const teePlacementCorrect = () =>
+    TEE_WORKLOADS.every(({ name, runtimeClassName }) => {
+      const pod = pods.find((item) => item.name === name && item.namespace === "default");
+      const node = pod ? nodes.find((item) => item.name === pod.node) : undefined;
+      return (
+        pod?.status === "Running" &&
+        !!node &&
+        nodeTee(node.labels) === runtimeClassTee(runtimeClassName)
+      );
+    });
+
+  const createTeeWorkloadPod = (name: string, runtimeClassName: string) => {
+    pods.push({
+      name,
+      namespace: "default",
+      status: "Pending",
+      age: "1s",
+      image: "nginx:1.29.4",
+      ip: "<none>",
+      node: "<none>",
+      labels: { app: name },
+      runtimeClassName,
+    });
+    addEvent(
+      "Normal",
+      "Created",
+      `pod/${name}`,
+      `pod/${name} created with runtimeClassName ${runtimeClassName}`,
+    );
+  };
+
+  const handleTeeCommand = (tokens: string[]): boolean => {
+    const verb = tokens[1];
+
+    // Guide tracking for read-only commands; rendering stays generic.
+    if (verb === "get" && (tokens[2] === "nodes" || tokens[2] === "node")) {
+      if (tokens.some((token) => token.includes("cpu-security"))) {
+        markDemoStepComplete("coco-tee-nodes");
+      }
+      return false;
+    }
+    if (verb === "get" && (tokens[2] === "pods" || tokens[2] === "pod")) {
+      const wide =
+        tokens.includes("wide") ||
+        tokens.includes("-o=wide") ||
+        tokens.includes("--output=wide");
+      if (wide && pods.some((pod) => pod.name === "nginx-snp")) {
+        markDemoStepComplete("coco-tee-mismatch");
+        if (pinnedTeeRuntimeClasses.size > 0 && teePlacementCorrect()) {
+          markDemoStepComplete("coco-tee-placement");
+        }
+      }
+      return false;
+    }
+    if (verb === "describe" && (tokens[2] === "pod" || tokens[2] === "pods") && tokens[3] === "nginx-snp") {
+      markDemoStepComplete("coco-tee-mismatch");
+      return false;
+    }
+
+    const fileFlagIndex = tokens.indexOf("-f");
+    if (fileFlagIndex < 0 || !["apply", "delete", "replace"].includes(verb)) {
+      return false;
+    }
+    const requestedPath = tokens[fileFlagIndex + 1];
+    const manifestPath = requestedPath ? resolveVirtualPath(requestedPath) : "";
+    const fileName = manifestPath ? virtualBasename(manifestPath) : "";
+    if (
+      (fileName !== "tee-runtimeclasses.yaml" && fileName !== "nginx-tee.yaml") ||
+      !getVirtualFile(manifestPath)
+    ) {
+      return false;
+    }
+
+    if (!cocoInstalled) {
+      printHtml(
+        `<span style="color:#ff7373;">Error: Confidential Containers is not installed. Run the Helm install step first.</span>`,
+      );
+      return true;
+    }
+
+    if (fileName === "tee-runtimeclasses.yaml") {
+      if (verb === "apply") {
+        const lines = TEE_PINNED_RUNTIMECLASSES.map((name) => {
+          const alreadyPinned = pinnedTeeRuntimeClasses.has(name);
+          activeRuntimeClasses.add(name);
+          pinnedTeeRuntimeClasses.add(name);
+          if (!alreadyPinned) {
+            addEvent(
+              "Normal",
+              "Configured",
+              `runtimeclass/${name}`,
+              `scheduling.nodeSelector now requires ${TEE_NODE_LABEL[runtimeClassTee(name)!]}=true`,
+            );
+          }
+          return `runtimeclass.node.k8s.io/${name} ${alreadyPinned ? "unchanged" : "configured"}`;
+        });
+        printPre(`<span style="color:#b8ff3c;">${escapeHtml(lines.join("\n"))}</span>`);
+        updateDashboard();
+        markDemoStepComplete("coco-tee-pin-apply");
+        return true;
+      }
+
+      if (verb === "delete") {
+        const lines = TEE_PINNED_RUNTIMECLASSES.map((name) => {
+          activeRuntimeClasses.delete(name);
+          pinnedTeeRuntimeClasses.delete(name);
+          addEvent("Normal", "Deleted", `runtimeclass/${name}`, `runtimeclass.node.k8s.io/${name} deleted`);
+          return `runtimeclass.node.k8s.io "${name}" deleted`;
+        });
+        printPre(`<span style="color:#b8ff3c;">${escapeHtml(lines.join("\n"))}</span>`);
+        updateDashboard();
+        return true;
+      }
+
+      printHtml(
+        `<span style="color:#ff7373;">kubectl replace is only simulated for nginx-tee.yaml in this demo. Use kubectl apply -f tee-runtimeclasses.yaml.</span>`,
+      );
+      return true;
+    }
+
+    // nginx-tee.yaml
+    const missingRuntime = TEE_WORKLOADS.find(
+      ({ runtimeClassName }) => !activeRuntimeClasses.has(runtimeClassName),
+    );
+
+    const deleteTeePod = (name: string): boolean => {
+      const index = pods.findIndex((pod) => pod.name === name && pod.namespace === "default");
+      if (index === -1) return false;
+      pods.splice(index, 1);
+      addEvent("Normal", "Terminated", `pod/${name}`, `Pod ${name} deleted`);
+      return true;
+    };
+
+    if (verb === "delete") {
+      const lines = TEE_WORKLOADS.map(({ name }) =>
+        deleteTeePod(name) ? `pod "${name}" deleted` : `Error from server (NotFound): pods "${name}" not found`,
+      );
+      printPre(`<span style="color:#dff7f0;">${escapeHtml(lines.join("\n"))}</span>`);
+      updateDashboard();
+      return true;
+    }
+
+    if (missingRuntime && verb !== "delete") {
+      printHtml(
+        `<span style="color:#ff7373;">Error from server (Forbidden): pods "${escapeHtml(
+          TEE_WORKLOADS.find((workload) => workload.runtimeClassName === missingRuntime.runtimeClassName)!.name,
+        )}" is forbidden: pod rejected: RuntimeClass "${escapeHtml(
+          missingRuntime.runtimeClassName,
+        )}" not found</span>`,
+      );
+      return true;
+    }
+
+    if (verb === "replace") {
+      if (!tokens.includes("--force")) {
+        printHtml(
+          `<span style="color:#ff7373;">The Pod spec is immutable for scheduling fields. Use kubectl replace --force -f nginx-tee.yaml to delete and recreate it.</span>`,
+        );
+        return true;
+      }
+      const lines: string[] = [];
+      for (const { name } of TEE_WORKLOADS) {
+        if (deleteTeePod(name)) {
+          lines.push(`pod "${name}" deleted`);
+        }
+      }
+      for (const { name, runtimeClassName } of TEE_WORKLOADS) {
+        createTeeWorkloadPod(name, runtimeClassName);
+        lines.push(`pod/${name} replaced`);
+      }
+      checkPendingPods();
+      updateDashboard();
+      printPre(`<span style="color:#b8ff3c;">${escapeHtml(lines.join("\n"))}</span>`);
+      markDemoStepComplete("coco-tee-replace");
+      return true;
+    }
+
+    // apply
+    const lines: string[] = [];
+    let created = false;
+    for (const { name, runtimeClassName } of TEE_WORKLOADS) {
+      if (pods.some((pod) => pod.name === name && pod.namespace === "default")) {
+        lines.push(`pod/${name} unchanged`);
+        continue;
+      }
+      createTeeWorkloadPod(name, runtimeClassName);
+      created = true;
+      lines.push(`pod/${name} created`);
+    }
+    checkPendingPods();
+    updateDashboard();
+    printPre(`<span style="color:#b8ff3c;">${escapeHtml(lines.join("\n"))}</span>`);
+    markDemoStepComplete("coco-tee-apply");
+    // Deleting the Pods and re-applying also picks up pinned selectors.
+    if (created && pinnedTeeRuntimeClasses.size > 0) {
+      markDemoStepComplete("coco-tee-replace");
+    }
+    return true;
   };
 
   const getManifestKind = (manifestPath: string): string => {
@@ -5618,7 +6102,12 @@ Kernel isolation: enabled</span>`);
           `    Optional:                false`,
           `    DownwardAPI:             true`,
           `QoS Class:                   Burstable`,
-          `Node-Selectors:              <none>`,
+          ...(pod.nodeSelector && Object.keys(pod.nodeSelector).length > 0
+            ? Object.entries(pod.nodeSelector).map(
+                ([key, value], index) =>
+                  `${index === 0 ? "Node-Selectors:              " : "                             "}${key}=${value}`,
+              )
+            : [`Node-Selectors:              <none>`]),
           `Tolerations:                  node.kubernetes.io/not-ready:NoExecute op=Exists for 300s`,
           `                              node.kubernetes.io/unreachable:NoExecute op=Exists for 300s`,
           `Events:`,
@@ -6073,7 +6562,10 @@ Kernel isolation: enabled</span>`);
           ...filtered.map((pod) => pod.namespace.length + 2),
         );
         const readyWidth = 8;
-        const statusWidth = 11;
+        const statusWidth = Math.max(
+          11,
+          ...filtered.map((pod) => pod.status.length + 2),
+        );
         const restartsWidth = 10;
         const ageWidth = Math.max(
           6,
@@ -6290,6 +6782,27 @@ Kernel isolation: enabled</span>`);
       ) {
         const showLabels = tokens.includes("--show-labels");
 
+        // `-L key1,key2` (or --label-columns) adds one column per label key.
+        // kubectl titles each column with the last path segment, uppercased.
+        const labelColumns: string[] = [];
+        for (let i = 3; i < tokens.length; i++) {
+          let value: string | undefined;
+          if (tokens[i] === "-L" || tokens[i] === "--label-columns") {
+            value = tokens[i + 1];
+          } else if (tokens[i].startsWith("-L=")) {
+            value = tokens[i].slice(3);
+          } else if (tokens[i].startsWith("--label-columns=")) {
+            value = tokens[i].slice("--label-columns=".length);
+          }
+          if (value) {
+            labelColumns.push(
+              ...value.split(",").map((key) => key.trim()).filter(Boolean),
+            );
+          }
+        }
+        const labelColumnTitle = (key: string) =>
+          (key.split("/").pop() || key).toUpperCase();
+
         // Support Kubernetes-style label selectors such as `-l runtime=edera`
         // so `kubectl get nodes -l runtime=edera` only returns matching nodes.
         let labelSelector = "";
@@ -6412,6 +6925,16 @@ Kernel isolation: enabled</span>`);
           );
         }
 
+        const labelColumnWidths = labelColumns.map((key) =>
+          Math.max(
+            labelColumnTitle(key).length + 3,
+            ...selectedNodes.map((node) => (node.labels[key] ?? "").length + 3),
+          ),
+        );
+        labelColumns.forEach((key, index) => {
+          headerColumns.push(labelColumnTitle(key).padEnd(labelColumnWidths[index]));
+        });
+
         if (showLabels) {
           headerColumns.push("LABELS".padEnd(labelWidth));
         }
@@ -6434,6 +6957,7 @@ Kernel isolation: enabled</span>`);
               kernelWidth +
               runtimeWidth
             : 0) +
+          labelColumnWidths.reduce((total, width) => total + width, 0) +
           (showLabels ? labelWidth : 0);
 
         html += `<span style="color:#08736d;">${"─".repeat(
@@ -6460,6 +6984,15 @@ Kernel isolation: enabled</span>`);
               escapeHtml(node.containerRuntime.padEnd(runtimeWidth)),
             );
           }
+
+          labelColumns.forEach((key, index) => {
+            const value = node.labels[key] ?? "";
+            rowParts.push(
+              `<span style="color:${value === "true" ? "#b8ff3c" : "#dff7f0"};">${escapeHtml(
+                value.padEnd(labelColumnWidths[index]),
+              )}</span>`,
+            );
+          });
 
           if (showLabels) {
             rowParts.push(
@@ -7575,6 +8108,17 @@ Kernel isolation: enabled</span>`);
           if (fileName === "nginx-secure.yaml" || fileName === "/coco/nginx-secure.yaml") {
             printPre(`<span style="color:#dff7f0;">${escapeHtml(COCO_NGINX_SECURE_YAML_CONTENT)}</span>`);
             markDemoStepComplete("coco-secure-inspect");
+            return;
+          }
+
+          if (fileName === "tee-runtimeclasses.yaml" || fileName === "/coco/tee-runtimeclasses.yaml") {
+            printPre(`<span style="color:#dff7f0;">${escapeHtml(COCO_TEE_RUNTIMECLASSES_YAML_CONTENT)}</span>`);
+            markDemoStepComplete("coco-tee-pin-inspect");
+            return;
+          }
+
+          if (fileName === "nginx-tee.yaml" || fileName === "/coco/nginx-tee.yaml") {
+            printPre(`<span style="color:#dff7f0;">${escapeHtml(COCO_NGINX_TEE_YAML_CONTENT)}</span>`);
             return;
           }
 

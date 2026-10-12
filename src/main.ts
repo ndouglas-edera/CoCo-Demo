@@ -1147,8 +1147,8 @@ footnote:
   `</li>` +
   `<li>There is also a tradeoff between convenience and security.</li>` + 
   `<li>Ideally, only the most sensitive components run inside the TEE.</li>` +
-  `<li>In practice, most deployments put an entire microVM in the TEE, so a vulnerability in the guest OS or anything else inside it can still impact your workload.</li>` +
-  `<li>It is simply too expensive to just use for an isolation use-case. You only want Confidential Computing if you also need to ensure that your infrastructure (admins, etc) cannott tamper with the workload.</li>` + 
+  `<li>In practice, most deployments put an entire microVM in the TEE, <br/>so a vulnerability in the guest OS or anything else inside it can still impact your workload.</li>` +
+  `<li>It is simply too expensive to just use for an isolation use-case. <br/>You only want Confidential Computing if you also need to ensure that your infrastructure (admins, etc) cannot tamper with the workload.</li>` + 
   `<li>Use cases include</li>` +
   `<ul>` +
   `<li><b>Healthcare</b></li>` +

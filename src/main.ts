@@ -4859,7 +4859,11 @@ Kernel isolation: enabled</span>`);
     );
 
     printHtml(
-      `<span style="color:#b8ff3c;">NAME: coco STATUS: deployed NAMESPACE: coco-system</span>`,
+    `<span style="color: #b8ff3c;">
+      NAME: coco<br>
+      STATUS: deployed<br>
+      NAMESPACE: coco-system
+     </span>`,
     );
 
     updateDashboard();

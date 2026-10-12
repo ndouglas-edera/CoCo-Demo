@@ -896,7 +896,7 @@ const PROTECT_DEMO_STEPS: DemoStep[] = [
     title: "Wait for CoCo to become ready",
     description:
       "Watch the <code class='guide-code'>coco-system</code> namespace until the Confidential Containers components report <code class='guide-code'>Running</code>.",
-    command: "kubectl get pods -n coco-system --watch",
+    command: "kubectl get pods -n coco-system",
   },
 {
 id: "coco-runtimeclasses",
@@ -3652,7 +3652,7 @@ const renderNodes = () => {
           </div>
 
           <div class="cli-help-command">
-            <code>kubectl get pods -n coco-system --watch</code>
+            <code>kubectl get pods -n coco-system</code>
             <span>Watch CoCo system components become Ready.</span>
           </div>
 

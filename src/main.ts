@@ -1171,7 +1171,7 @@ async function initTerminalDemo() {
       </header>
 
       <section class="brand-hero" aria-labelledby="hero-title">
-        <div class="hero-eyebrow">INTERACTIVE DEMO</div>
+        <div class="hero-eyebrow">WEBERNETES DEMO</div>
         <h2 id="hero-title">CONFIDENTIAL<br />CONTAINERS</h2>
         <p>
           Protect containers while they are running using confidential computing

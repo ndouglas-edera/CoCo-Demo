@@ -2400,7 +2400,41 @@ const renderNodes = () => {
         </button>
       `;
     }).join("");
+    fitGuideStepList(currentIndex);
   };
+
+  // Cap the demo flow at GUIDE_VISIBLE_STEPS rows and keep the selected step
+  // in view with a little context above it, so users see where they've been
+  // and what's next without all the steps at once.
+  const GUIDE_VISIBLE_STEPS = 10;
+  const GUIDE_STEPS_ABOVE_CURRENT = 2;
+  let lastScrolledGuideIndex: number | null = null;
+
+  const fitGuideStepList = (currentIndex: number) => {
+    const rows = guideStepList.querySelectorAll<HTMLElement>(".guide-step-mini");
+    if (rows.length === 0 || guideStepList.offsetParent === null) {
+      return;
+    }
+
+    const limitRow = rows[Math.min(GUIDE_VISIBLE_STEPS, rows.length) - 1];
+    const listTop = rows[0].offsetTop;
+    guideStepList.style.maxHeight =
+      `${limitRow.offsetTop + limitRow.offsetHeight - listTop}px`;
+
+    // Only auto-scroll when the selected step changes, so a user browsing
+    // ahead isn't yanked back on every re-render.
+    if (currentIndex === lastScrolledGuideIndex) {
+      return;
+    }
+    lastScrolledGuideIndex = currentIndex;
+    const anchor = rows[Math.max(0, currentIndex - GUIDE_STEPS_ABOVE_CURRENT)];
+    guideStepList.scrollTop = anchor.offsetTop - listTop;
+  };
+
+  window.addEventListener("resize", () => {
+    lastScrolledGuideIndex = null;
+    fitGuideStepList(getSelectedDemoStepIndex());
+  });
 
   const markDemoStepComplete = (stepId: string) => {
     const wasComplete = isDemoComplete();
